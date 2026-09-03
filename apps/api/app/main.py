@@ -17,7 +17,7 @@ from astra_rules import RulePack
 
 from .config import settings
 from .db import init_db
-from .routers import analytics, rulepacks, scans
+from .routers import analytics, listings, rulepacks, scans
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +81,7 @@ app.add_middleware(
 )
 
 app.include_router(scans.router)
+app.include_router(listings.router)
 app.include_router(analytics.router)
 app.include_router(rulepacks.router)
 
