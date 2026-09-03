@@ -184,6 +184,42 @@ def test_identical_pixels_do_not_convict_when_only_a_barcode_calibrated_them():
     assert "ID-card-sized" in report.calibration_note
 
 
+def test_tiny_print_is_still_convictable_with_a_good_ruler():
+    """The gate is on the ruler, not on the width of the answer.
+
+    Two pixels of doubt on a 1.2 mm glyph is more than 10% of it. A gate applied
+    to the combined interval would therefore refuse to convict on precisely the
+    tiny lettering Rule 9 exists to catch -- even with an ID-1 card in frame and
+    the entire interval sitting a millimetre clear of the threshold.
+    """
+    scale = good_scale()
+    fields = compliant(scale=scale)
+    fields.net_quantity.spans = [span("100 g", height_px=14, scale=scale)]
+
+    measurement = fields.net_quantity.spans[0].height
+    # Imprecise in relative terms...
+    assert measurement.relative_uncertainty > 0.10
+    # ...but measured with a ruler we trust, and decisive all the same.
+    assert measurement.scale_uncertainty <= 0.10
+    assert measurement.ci_high_mm < 2.5
+
+    assert status_of(evaluate(fields, PACK_ID), "R9-T1-netqty-height") is FindingStatus.FAIL
+
+
+def test_the_interval_widens_for_small_glyphs():
+    """Absolute reading error does not shrink just because the print does."""
+    scale = good_scale()
+    big = span("100 g", height_px=60, scale=scale).height
+    small = span("100 g", height_px=12, scale=scale).height
+
+    def half_width(m):
+        return m.ci_high_mm - m.value_mm
+
+    # The absolute margin is comparable, so as a share of the value it is far
+    # larger on the smaller glyph.
+    assert small.relative_uncertainty > big.relative_uncertainty * 2
+
+
 def test_no_scale_at_all_leaves_measurement_rules_undecided():
     fields = compliant(scale=None)
     fields.min_letter_height = None

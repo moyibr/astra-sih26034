@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -75,6 +76,37 @@ def test_the_card_is_found_and_not_the_package():
 
     # The card sits below the package, so it must be in the lower half of frame.
     assert quad[:, 1].min() > decode(png).shape[0] * 0.5
+
+
+def test_declared_dimensions_scale_against_the_package_not_the_photograph():
+    """The declared width belongs to the package, not to the frame around it.
+
+    Dividing by the full image width assumes the package fills the shot edge to
+    edge. Any margin of background then understates every millimetre by however
+    much of the photograph is not the package -- and understated millimetres are
+    false violations. Here the package spans 110 of a 130 mm frame, so that
+    mistake costs 15%, comfortably enough to invent a Rule 9 breach.
+    """
+    png, truth = synth.render(
+        synth.LabelSpec(width_mm=110, height_mm=180, with_id1_card=False)
+    )
+    image = decode(png)
+    true_mm_per_px = 1.0 / truth["px_per_mm"]
+
+    calibration = calib.from_declared_dimension(image, 110.0)
+    assert calibration is not None
+
+    assert calibration.scale.mm_per_px == pytest.approx(true_mm_per_px, rel=0.03)
+
+    # The stated uncertainty has to actually cover the error it makes.
+    error = abs(calibration.scale.mm_per_px - true_mm_per_px) / true_mm_per_px
+    assert error <= calibration.scale.relative_uncertainty
+
+
+def test_a_declared_dimension_is_declined_when_the_package_cannot_be_located():
+    """Better no scale than a scale measured against nothing."""
+    blank = np.full((400, 400, 3), 245, dtype=np.uint8)
+    assert calib.from_declared_dimension(blank, 110.0) is None
 
 
 def test_a_label_with_no_reference_object_yields_no_usable_scale():

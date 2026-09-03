@@ -51,3 +51,26 @@ def undersized_png() -> bytes:
 def label_truth() -> dict:
     _, truth = synth.compliant_label()
     return truth
+
+
+@pytest.fixture(scope="session")
+def unmeasurable_but_defective_png() -> bytes:
+    """A label with a real defect and no way to measure anything.
+
+    The consumer-care block is stripped out, which is a violation any reader can
+    see without a ruler, and no calibration card is in frame, so every
+    millimetre rule is necessarily undecided. That combination is what a notice
+    has to handle honestly: allege the defect, and say plainly which checks it
+    is *not* alleging.
+    """
+    declarations = [
+        d
+        for d in synth.default_declarations()
+        if "Customer Care" not in d.text
+        and "Tel 1800" not in d.text
+        and "@" not in d.text
+    ]
+    png, _ = synth.render(
+        synth.LabelSpec(declarations=declarations, with_id1_card=False)
+    )
+    return png

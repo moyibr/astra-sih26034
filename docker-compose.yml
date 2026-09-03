@@ -1,0 +1,87 @@
+# The offline path.
+#
+# `docker compose up` brings up the whole system with no dependency on anything
+# outside this file: Postgres for the records, MinIO for the evidence, the API
+# and the dashboard. It is the configuration rehearsed for the venue, where the
+# wifi cannot be relied on and a demo that needs a cloud endpoint is a demo that
+# does not happen.
+#
+# The cloud deployment uses the same images with DATABASE_URL and the S3
+# variables pointed at managed services instead.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-astra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-astra}
+      POSTGRES_DB: ${POSTGRES_DB:-astra}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-astra}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  storage:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-astra}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-astra-secret}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      ASTRA_ENV: production
+      ASTRA_SECRET_KEY: ${ASTRA_SECRET_KEY:-change-me-in-production}
+      ASTRA_ACTIVE_RULEPACK: ${ASTRA_ACTIVE_RULEPACK:-lmpc-2011@2026.07.01}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-astra}:${POSTGRES_PASSWORD:-astra}@db:5432/${POSTGRES_DB:-astra}
+      S3_ENDPOINT_URL: http://storage:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-astra}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-astra-secret}
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      # Blank by default: with no key the pipeline runs entirely offline and
+      # falls back to pattern extraction alone.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_NORMALISER_ENABLED: ${LLM_NORMALISER_ENABLED:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - evidence-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  storage-data:
+  evidence-data:

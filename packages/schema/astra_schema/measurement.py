@@ -32,6 +32,19 @@ CALIBRATION_UNCERTAINTY: dict[CalibrationSource, float] = {
 #: to re-shoot with a calibration card in frame.
 MAX_USABLE_UNCERTAINTY = 0.10
 
+#: How precisely the edge of a glyph can be located, in pixels.
+#:
+#: Anti-aliasing, the binarisation threshold, perspective resampling and plain
+#: pixel quantisation all blur where a stroke stops, on the top edge and the
+#: bottom independently. This is not a guess: it is fitted against rendered
+#: ground truth in ``ml/eval/report.py`` and set to the value at which the
+#: reported intervals actually contain the true height. At 1.0 they contained it
+#: about 91% of the time, which is not an interval anyone should rely on.
+#:
+#: Erring high costs only precision near the statutory threshold, where the
+#: honest answer is "re-shoot" anyway. Erring low costs a false accusation.
+EDGE_LOCALISATION_PX = 2.0
+
 
 class Scale(BaseModel):
     """Pixels-to-millimetres conversion recovered from a reference object."""
@@ -78,6 +91,18 @@ class Measurement(BaseModel):
     source: CalibrationSource
     detail: str | None = None
 
+    scale_uncertainty: float = Field(default=0.0, ge=0, le=1)
+    """Uncertainty contributed by the reference object alone.
+
+    Kept separate from the interval because the two answer different questions.
+    The interval says how wide the answer is; this says whether the ruler was
+    good enough to answer at all. Conflating them makes small print
+    unprosecutable: a two-pixel doubt on a 1.5 mm glyph is over 10% of it, so a
+    gate applied to the combined interval would refuse to convict on precisely
+    the tiny lettering the height rules exist to catch, even when the whole
+    interval sits far below the threshold.
+    """
+
     @model_validator(mode="after")
     def _check_interval(self) -> "Measurement":
         if not (self.ci_low_mm <= self.value_mm <= self.ci_high_mm):
@@ -85,15 +110,43 @@ class Measurement(BaseModel):
         return self
 
     @classmethod
-    def from_pixels(cls, px: float, scale: Scale, detail: str | None = None) -> "Measurement":
+    def from_pixels(
+        cls,
+        px: float,
+        scale: Scale,
+        detail: str | None = None,
+        edge_px: float = EDGE_LOCALISATION_PX,
+    ) -> "Measurement":
+        """Convert a pixel extent to millimetres, with both error terms.
+
+        Two independent things are uncertain, and an interval that counts only
+        the first is too narrow to mean anything:
+
+        * **The ruler.** How many millimetres a pixel is worth, which depends
+          entirely on the reference object. This scales with the measurement.
+        * **The reading.** Where exactly the ink stops. Anti-aliasing, the
+          binarisation threshold and plain pixel quantisation put roughly half a
+          pixel of doubt on the top edge of a glyph and half a pixel on the
+          bottom. This does *not* scale with the measurement, so it dominates
+          for small print -- which is precisely the print the font-height rules
+          are about.
+
+        Leaving the second term out gave intervals that contained the true value
+        only about three quarters of the time, which would make the whole
+        refusal-to-convict-outside-the-interval design decorative.
+        """
         value = px * scale.mm_per_px
-        spread = value * scale.relative_uncertainty
+        from_ruler = value * scale.relative_uncertainty
+        from_reading = edge_px * scale.mm_per_px
+        # Independent errors combine in quadrature, not by addition.
+        spread = (from_ruler**2 + from_reading**2) ** 0.5
         return cls(
             value_mm=value,
             ci_low_mm=max(0.0, value - spread),
             ci_high_mm=value + spread,
             source=scale.source,
             detail=detail or scale.reference_detail,
+            scale_uncertainty=scale.relative_uncertainty,
         )
 
     @property
@@ -122,7 +175,11 @@ class Measurement(BaseModel):
         """
         if self.ci_low_mm >= threshold_mm:
             return FindingStatus.PASS
-        if self.relative_uncertainty > MAX_USABLE_UNCERTAINTY:
+        # The gate is on the ruler, not on the width of the answer. A reading
+        # can be imprecise in absolute terms and still be decisive when the
+        # whole interval sits below the threshold; what it can never be is
+        # decisive when we do not know what a pixel is worth.
+        if self.scale_uncertainty > MAX_USABLE_UNCERTAINTY:
             return FindingStatus.INDETERMINATE
         if self.ci_high_mm < threshold_mm:
             return FindingStatus.FAIL

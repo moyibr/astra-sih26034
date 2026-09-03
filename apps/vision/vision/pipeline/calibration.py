@@ -275,13 +275,59 @@ def detect_barcode(image: np.ndarray) -> Calibration | None:
     return Calibration(scale, None, None, corners)
 
 
-def from_declared_dimension(image_width_px: float, package_width_mm: float) -> Calibration:
-    """Scale from a dimension the seller declared, e.g. on a listing."""
+def estimate_package_extent(image: np.ndarray) -> tuple[float, float] | None:
+    """Bounding box of the dominant foreground object, in pixels.
+
+    A heuristic, and treated as one everywhere it is used.
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 30, 120)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    biggest = max(contours, key=cv2.contourArea)
+    frame_area = image.shape[0] * image.shape[1]
+    if cv2.contourArea(biggest) < frame_area * 0.05:
+        return None
+    _, _, w, h = cv2.boundingRect(biggest)
+    return float(w), float(h)
+
+
+def from_declared_dimension(
+    image: np.ndarray, package_width_mm: float
+) -> Calibration | None:
+    """Scale from a dimension the seller declared, e.g. on a listing.
+
+    The declared width belongs to the *package*, not to the photograph, so the
+    scale has to be measured against the pixels the package actually occupies.
+    Dividing by the full image width instead silently assumes the package fills
+    the frame edge to edge; on an ordinary photograph with any margin around the
+    subject that understates every millimetre by however much background is in
+    shot, and understated millimetres are false violations.
+
+    If the package cannot be located in the frame we return nothing rather than
+    guess, and the caller falls through to a weaker reference or to none at all.
+    """
+    extent = estimate_package_extent(image)
+    if extent is None:
+        log.info("declared dimension supplied, but the package could not be located")
+        return None
+
+    width_px, _height_px = extent
     scale = Scale.from_reference(
-        measured_px=image_width_px,
+        measured_px=width_px,
         known_mm=package_width_mm,
         source=CalibrationSource.DECLARED_DIMENSION,
-        detail=f"declared package width {package_width_mm:g} mm",
+        detail=(
+            f"declared package width {package_width_mm:g} mm spanning "
+            f"{width_px:.0f} px of the frame"
+        ),
+        # Segmenting the package edge is looser than finding a printed
+        # fiducial, and the uncertainty has to say so.
+        extra_uncertainty=0.05,
     )
     return Calibration(scale)
 
@@ -316,7 +362,10 @@ def calibrate(image: np.ndarray, *, package_width_mm: float | None = None) -> Ca
             return found
 
     if package_width_mm:
-        return from_declared_dimension(image.shape[1], package_width_mm)
+        found = from_declared_dimension(image, package_width_mm)
+        if found is not None:
+            log.info("calibrated via declared package width")
+            return found
 
     found = detect_barcode(image)
     if found is not None:

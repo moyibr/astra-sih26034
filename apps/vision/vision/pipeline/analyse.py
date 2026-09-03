@@ -41,29 +41,6 @@ def decode(image_bytes: bytes) -> np.ndarray:
     return image
 
 
-def _estimate_package_extent(image: np.ndarray) -> tuple[float, float] | None:
-    """Bounding box of the dominant foreground object, in pixels.
-
-    Used to size the principal display panel when the inspector has not entered
-    dimensions. It is a heuristic and it is treated as one: the geometry it
-    produces is marked unconfident, and the PWA asks for a confirmation tap.
-    """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blurred, 30, 120)
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return None
-    biggest = max(contours, key=cv2.contourArea)
-    frame_area = image.shape[0] * image.shape[1]
-    if cv2.contourArea(biggest) < frame_area * 0.05:
-        return None
-    _, _, w, h = cv2.boundingRect(biggest)
-    return float(w), float(h)
-
-
 def _build_geometry(
     image: np.ndarray,
     scale,
@@ -85,7 +62,7 @@ def _build_geometry(
     # Dimensions the inspector supplied always win over anything we infer.
     supplied = height_mm is not None and (width_mm is not None or diameter_mm is not None)
     if not supplied and scale is not None and scale.is_usable_for_legal_assertion:
-        extent = _estimate_package_extent(image)
+        extent = calib.estimate_package_extent(image)
         if extent is not None:
             w_px, h_px = extent
             geometry.width_mm = geometry.width_mm or w_px * scale.mm_per_px
@@ -142,7 +119,15 @@ def analyse(
     # glyphs horizontally and would otherwise invent width-ratio violations.
     working = calibration.rectified if calibration.rectified is not None else image
 
-    spans = ocr.read(working, scale=calibration.scale)
+    # Only hand the OCR a scale it can honestly convert with. With no reference
+    # object the placeholder scale is one millimetre per pixel, which would
+    # decorate every glyph with a measurement that is not merely imprecise but
+    # meaningless. The rule engine would still decline to convict on it, but the
+    # figure would sit in the stored record looking like evidence.
+    usable_scale = (
+        calibration.scale if calibration.scale.is_usable_for_legal_assertion else None
+    )
+    spans = ocr.read(working, scale=usable_scale)
     text = ocr.full_text(spans)
     extracted = extract.extract_all(text, spans)
 

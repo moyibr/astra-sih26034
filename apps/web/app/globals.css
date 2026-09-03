@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/*
+ * ASTRA design tokens.
+ *
+ * The status palette is doing real work here, so it is defined once and used
+ * everywhere. Four outcomes have to stay instantly distinguishable at arm's
+ * length on a phone in a shop: a violation, a pass, something the system could
+ * not decide, and something the law exempts. "Undecided" in particular must
+ * never read as a soft failure -- it is an instruction to re-shoot, not an
+ * accusation, and colouring it like a violation would quietly undo the whole
+ * point of having it.
+ */
+
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --foreground: #12161c;
+  --muted: #5b6674;
+  --border: #dfe3e9;
+
+  --accent: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-soft: #e8eeff;
+
+  --fail: #b91c1c;
+  --fail-soft: #fdecec;
+  --pass: #047857;
+  --pass-soft: #e6f4ef;
+  --undecided: #a16207;
+  --undecided-soft: #fdf3e2;
+  --exempt: #0369a1;
+  --exempt-soft: #e6f2fa;
+  --neutral: #64748b;
+  --neutral-soft: #eef1f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0c0f14;
+    --surface: #141922;
+    --surface-2: #1b212c;
+    --foreground: #e8ecf2;
+    --muted: #97a3b4;
+    --border: #262e3b;
+
+    --accent: #6b93ff;
+    --accent-fg: #0c0f14;
+    --accent-soft: #1a2540;
+
+    --fail: #f87171;
+    --fail-soft: #331a1a;
+    --pass: #34d399;
+    --pass-soft: #10281f;
+    --undecided: #fbbf24;
+    --undecided-soft: #302510;
+    --exempt: #56b6f0;
+    --exempt-soft: #102634;
+    --neutral: #94a3b8;
+    --neutral-soft: #1c232e;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-fail: var(--fail);
+  --color-fail-soft: var(--fail-soft);
+  --color-pass: var(--pass);
+  --color-pass-soft: var(--pass-soft);
+  --color-undecided: var(--undecided);
+  --color-undecided-soft: var(--undecided-soft);
+  --color-exempt: var(--exempt);
+  --color-exempt-soft: var(--exempt-soft);
+  --color-neutral: var(--neutral);
+  --color-neutral-soft: var(--neutral-soft);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "Noto Sans Devanagari", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures keep measurement columns from jittering as values change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

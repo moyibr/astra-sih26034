@@ -199,13 +199,40 @@ def test_a_clean_scan_cannot_produce_a_notice(client, compliant_png):
     assert response.status_code == 409
 
 
-def test_a_notice_says_which_checks_it_is_not_alleging(client, undersized_png):
-    """An officer who is not told what was undecided may assert more than the
-    evidence supports."""
+def test_a_notice_says_which_checks_it_is_not_alleging(
+    client, unmeasurable_but_defective_png
+):
+    """An officer not told what was undecided may assert more than the evidence
+    supports.
+
+    The label here has a defect visible without a ruler and no reference object
+    in frame, so the notice must both allege the defect and disclose the checks
+    it is staying silent on.
+    """
+    scan = _post_scan(
+        client, unmeasurable_but_defective_png,
+        shape="OTHER", height_mm="", width_mm="",
+    )
+    assert scan["indeterminate"] > 0, "expected the millimetre rules to be undecided"
+
+    notice = client.post(f"/api/scans/{scan['id']}/notice", json={}).json()
+    assert "NOT alleged" in notice["body"]
+    assert str(scan["indeterminate"]) in notice["body"]
+
+
+def test_a_scan_with_nothing_measurable_and_nothing_wrong_alleges_nothing(
+    client, undersized_png
+):
+    """Undersized print with no panel area is not a violation, it is a question.
+
+    Without dimensions the panel area is unknown, and the required height
+    depends entirely on it -- so there is no threshold to have breached, and the
+    notice endpoint must refuse rather than invent one.
+    """
     scan = _post_scan(client, undersized_png, shape="OTHER", height_mm="", width_mm="")
-    if scan["indeterminate"]:
-        notice = client.post(f"/api/scans/{scan['id']}/notice", json={}).json()
-        assert "NOT alleged" in notice["body"]
+    assert scan["critical_violations"] == 0
+    assert scan["verdict"] == "NEEDS_REVIEW"
+    assert client.post(f"/api/scans/{scan['id']}/notice", json={}).status_code == 409
 
 
 def test_only_a_named_officer_gives_a_notice_effect(client, undersized_png):
