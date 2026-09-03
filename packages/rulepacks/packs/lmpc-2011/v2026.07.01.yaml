@@ -1,0 +1,318 @@
+# ---------------------------------------------------------------------------
+# Legal Metrology (Packaged Commodities) Rules, 2011 - as in force 2026-07-01
+#
+# This file is the law, expressed as data. Nothing in the engine hard-codes a
+# threshold or a citation: change the law, ship a new pack, and every historical
+# report stays reproducible against the pack that judged it.
+#
+# `verification` on each rule is a working flag for the legal workstream:
+#   VERIFIED            - checked against the official gazette text
+#   NEEDS_GAZETTE_CHECK - drafted from secondary sources, confirm before pitch
+# ---------------------------------------------------------------------------
+
+pack: lmpc-2011
+version: "2026.07.01"
+title: Legal Metrology (Packaged Commodities) Rules, 2011
+jurisdiction: IN
+in_force_from: "2026-07-01"
+supersedes: null
+gazette_refs:
+  - "Legal Metrology (Packaged Commodities) Rules, 2011 (principal rules)"
+  - "Amendment effective 01.10.2022 - unit sale price; month/year relaxations"
+  - "Legal Metrology (Packaged Commodities) Amendment Rules, 2026 - notified 13.02.2026, in force 01.07.2026 (Rule 6(10A))"
+
+# -- Statutory threshold tables ---------------------------------------------
+# Rule 9 keys the minimum glyph height off the AREA OF THE PRINCIPAL DISPLAY
+# PANEL in cm2, not off the net weight of the commodity. This is the single most
+# commonly misquoted provision in the whole instrument.
+tables:
+  table_I:
+    description: >-
+      Height of numerals in the net-quantity declaration where net quantity is
+      declared by weight or volume, by area of the principal display panel.
+    key: pdp_area_cm2
+    unit: mm
+    bands:
+      - { upto: 50,   printed: 1.0, embossed: 1.5 }
+      - { upto: 100,  printed: 1.5, embossed: 3.0 }
+      - { upto: 500,  printed: 2.5, embossed: 4.0 }
+      - { upto: 2500, printed: 4.0, embossed: 6.0 }
+      - { upto: null, printed: 6.0, embossed: 6.0 }
+
+  table_II:
+    description: >-
+      Height of numerals where net quantity is declared by length, area or
+      number, by area of the principal display panel.
+    key: pdp_area_cm2
+    unit: mm
+    bands:
+      - { upto: 100,  printed: 1.0, embossed: 2.0 }
+      - { upto: 500,  printed: 2.0, embossed: 4.0 }
+      - { upto: 2500, printed: 4.0, embossed: 6.0 }
+      - { upto: null, printed: 6.0, embossed: 6.0 }
+
+# -- SI unit symbols (Rule 11 read with the Legal Metrology Act, 2009) -------
+units:
+  canonical:
+    mass:   { g: 1.0, kg: 1000.0, mg: 0.001 }
+    volume: { ml: 1.0, l: 1000.0, cl: 10.0 }
+    length: { mm: 1.0, cm: 10.0, m: 1000.0 }
+  # Printed forms we accept as *meaning* the symbol, while still flagging the
+  # irregularity. Symbols are not pluralised and take no full stop.
+  tolerated_variants:
+    g:  ["gm", "gms", "gm.", "gms.", "g.", "gram", "grams"]
+    kg: ["kgs", "kg.", "kgs.", "kilogram", "kilograms"]
+    ml: ["ml.", "mls", "millilitre", "milliliter", "millilitres"]
+    l:  ["ltr", "ltrs", "litre", "liter", "litres", "l.", "lt"]
+
+# -- Rule 26 exemptions - evaluated FIRST, so they suppress false positives --
+exemptions:
+  - id: R26-small-pack
+    citation: "Rule 26 - exemption for small packages"
+    reason: "Package containing a commodity of net quantity 10 g / 10 ml or less."
+    verification: NEEDS_GAZETTE_CHECK
+    when: { net_quantity_base_lte: 10 }
+    exempts: ["R6-*", "R9-*"]
+
+  - id: R26-wholesale-unit-price
+    citation: "Rule 26 read with Rule 6 - wholesale packages"
+    reason: "Unit sale price is not required on a wholesale package."
+    verification: NEEDS_GAZETTE_CHECK
+    when: { package_type: WHOLESALE }
+    exempts: ["R6-1-usp"]
+
+  - id: R26-drugs
+    citation: "Rule 26 - commodities governed by the Drugs and Cosmetics Act"
+    reason: "Drugs are labelled under their own statute."
+    verification: NEEDS_GAZETTE_CHECK
+    when: { commodity_category: drugs }
+    exempts: ["R6-*", "R9-*"]
+
+# -- Rules -------------------------------------------------------------------
+rules:
+
+  # ---- Rule 6(1): mandatory declarations ----------------------------------
+  - id: R6-1-a-manufacturer
+    citation: "Rule 6(1)(a) - name and complete address of manufacturer / packer / importer"
+    title: Manufacturer, packer or importer identity
+    severity: CRITICAL
+    verification: VERIFIED
+    check: { op: field_declared, field: manufacturer, min_confidence: 0.45 }
+    remedy: "Declare the name and complete address of the manufacturer, packer or importer."
+
+  - id: R6-1-b-common-name
+    citation: "Rule 6(1)(b) - common or generic name of the commodity"
+    title: Common or generic name
+    severity: MAJOR
+    verification: VERIFIED
+    check: { op: field_declared, field: common_name, min_confidence: 0.40 }
+    remedy: "Declare the common or generic name of the commodity."
+
+  - id: R6-1-c-net-quantity
+    citation: "Rule 6(1)(c) - net quantity in standard units or number"
+    title: Net quantity declaration
+    severity: CRITICAL
+    verification: VERIFIED
+    check: { op: net_quantity_declared }
+    remedy: "Declare net quantity in the standard unit of weight, measure or number."
+
+  - id: R6-1-c-unit-symbol
+    citation: "Rule 6(1)(c) read with Rule 11 - use of correct SI unit symbols"
+    title: Correct unit symbol
+    severity: ADVISORY
+    verification: NEEDS_GAZETTE_CHECK
+    check: { op: unit_symbol_canonical }
+    remedy: "Use the SI symbol exactly - 'g', 'kg', 'ml', 'l' - not pluralised and without a full stop."
+    note: >-
+      Deliberately ADVISORY. The irregularity is real but minor; ranking it
+      alongside a missing MRP would bury genuine consumer harm in pedantry.
+
+  - id: R6-1-d-month-year
+    citation: "Rule 6(1)(d) - month and year of manufacture, pre-packing or import"
+    title: Month and year of manufacture
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    check: { op: date_declared, field: manufacture_date }
+    remedy: "Declare the month and year of manufacture, pre-packing or import."
+
+  - id: R6-1-d-date-legible
+    citation: "Rule 6(1)(d) - month to be stated unambiguously"
+    title: Date format unambiguous
+    severity: ADVISORY
+    verification: NEEDS_GAZETTE_CHECK
+    requires: [R6-1-d-month-year]
+    check: { op: date_unambiguous, field: manufacture_date }
+    remedy: "State the month in words or as MM/YYYY so the date cannot be read two ways."
+    note: >-
+      Fires only when a date is genuinely undecidable - both components 12 or
+      under and no month name present. DD-MM-YYYY on its own is lawful and
+      ubiquitous in India; flagging it wholesale would create false positives.
+
+  - id: R6-1-e-mrp
+    citation: "Rule 6(1)(e) - retail sale price"
+    title: Maximum retail price declared
+    severity: CRITICAL
+    verification: VERIFIED
+    check: { op: field_declared, field: mrp, min_confidence: 0.50 }
+    remedy: "Declare the retail sale price as 'Maximum Retail Price Rs <amount> inclusive of all taxes'."
+
+  - id: R6-1-e-mrp-inclusive
+    citation: "Rule 6(1)(e) - price to be declared inclusive of all taxes"
+    title: "'Inclusive of all taxes' wording"
+    severity: MAJOR
+    verification: VERIFIED
+    requires: [R6-1-e-mrp]
+    check: { op: mrp_inclusive_phrase }
+    remedy: "Add the words 'inclusive of all taxes' to the retail sale price declaration."
+
+  - id: R6-1-e-dual-mrp
+    citation: "Rule 6(1)(e) read with s.36, Legal Metrology Act, 2009 - single retail sale price"
+    title: Single maximum retail price
+    severity: CRITICAL
+    verification: NEEDS_GAZETTE_CHECK
+    requires: [R6-1-e-mrp]
+    check: { op: single_mrp }
+    remedy: "Declare one maximum retail price. Differing prices for the same pack are not permitted."
+
+  - id: R6-1-usp
+    citation: "Rule 6 - unit sale price (mandatory w.e.f. 01.10.2022)"
+    title: Unit sale price
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    applies_when: { package_type: RETAIL }
+    check: { op: field_declared, field: unit_sale_price, min_confidence: 0.45 }
+    remedy: "Declare the unit sale price alongside the retail sale price."
+
+  - id: R6-1-f-consumer-care
+    citation: "Rule 6(1) - consumer care details"
+    title: Consumer care contact completeness
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    check:
+      op: consumer_care_complete
+      require_name: true
+      require_address: true
+      require_one_of: [phone, email]
+    remedy: >-
+      Give the name or designation of the person to be contacted, a complete
+      postal address, and a working telephone number or e-mail address.
+    note: >-
+      Sources disagree on whether telephone AND e-mail are both required or
+      either suffices. Configured here as 'name and address and at least one
+      channel'. Confirm the conjunction against the gazette before the pitch.
+
+  - id: R6-country-of-origin
+    citation: "Rule 6 - country of origin for imported commodities"
+    title: Country of origin
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    applies_when: { origin_is_imported: true }
+    check: { op: field_declared, field: origin, min_confidence: 0.45 }
+    remedy: "Declare the name of the country of origin on the imported package."
+
+  - id: R6-best-before
+    citation: "Rule 6 - 'best before' or 'use by' date for perishable commodities"
+    title: Best before / use by date
+    severity: CRITICAL
+    verification: NEEDS_GAZETTE_CHECK
+    applies_when: { is_perishable: true }
+    check: { op: date_declared, field: best_before }
+    remedy: "Declare the 'best before' or 'use by' date."
+
+  # ---- Rule 9: legibility and prominence ----------------------------------
+  - id: R9-1-language
+    citation: "Rule 9(1) - declarations in Hindi in Devanagari script or in English"
+    title: Permitted language of declarations
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    check: { op: language_permitted, allowed: [LATIN, DEVANAGARI] }
+    remedy: "Make the mandatory declarations in Hindi (Devanagari script) or in English."
+
+  - id: R9-T1-netqty-height
+    citation: "Rule 9, Table-I - height of numerals of the net-quantity declaration"
+    title: Net quantity numeral height
+    severity: CRITICAL
+    verification: VERIFIED
+    requires_calibration: true
+    applies_when: { net_quantity_by_count: false }
+    check: { op: numeral_height_gte, field: net_quantity, table: table_I }
+    remedy: "Increase the height of the net-quantity numerals to at least the height required for this panel size."
+
+  - id: R9-T2-count-height
+    citation: "Rule 9, Table-II - height of numerals where quantity is by length, area or number"
+    title: Numeral height (declaration by number or length)
+    severity: CRITICAL
+    verification: VERIFIED
+    requires_calibration: true
+    applies_when: { net_quantity_by_count: true }
+    check: { op: numeral_height_gte, field: net_quantity, table: table_II }
+    remedy: "Increase the height of the numerals to at least the height required for this panel size."
+
+  - id: R9-letter-height
+    citation: "Rule 9 - letters not less than 1 mm (2 mm when blown, formed, moulded, embossed or perforated)"
+    title: Minimum letter height
+    severity: MAJOR
+    verification: VERIFIED
+    requires_calibration: true
+    check: { op: letter_height_gte, printed_mm: 1.0, embossed_mm: 2.0 }
+    remedy: "Increase the height of the declaration letters to at least 1 mm (2 mm if embossed or moulded)."
+
+  - id: R9-width-ratio
+    citation: "Rule 9 - width of a letter or numeral not less than one-third of its height"
+    title: Letter width to height ratio
+    severity: ADVISORY
+    verification: VERIFIED
+    requires_calibration: true
+    check: { op: width_ratio_gte, ratio: 0.3333 }
+    remedy: "Use a less condensed typeface - each character must be at least one-third as wide as it is tall."
+    note: "Numeral '1' and the letters i, I and l are excluded by the rule itself."
+
+  - id: R9-contrast
+    citation: "Rule 9 - declarations in a colour that contrasts conspicuously with the background"
+    title: Conspicuous colour contrast
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    check: { op: contrast_ratio_gte, min_ratio: 4.5 }
+    remedy: "Print the declarations in a colour that contrasts conspicuously with the background."
+    note: >-
+      'Conspicuously' is not numerically defined in the rule. We adopt a WCAG 2.x
+      luminance contrast ratio of 4.5:1 as a defensible, published proxy and say
+      so in the report rather than pretending the statute names a figure.
+
+  # ---- Rule 5 / Second Schedule -------------------------------------------
+  - id: R5-schedule-ii-pack-size
+    citation: "Rule 5 read with the Second Schedule - prescribed pack sizes for scheduled commodities"
+    title: Prescribed pack size
+    severity: MAJOR
+    verification: NEEDS_GAZETTE_CHECK
+    applies_when: { commodity_is_scheduled: true }
+    check: { op: scheduled_pack_size }
+    remedy: "Pack this scheduled commodity in one of the quantities prescribed by the Second Schedule."
+
+  # ---- E-commerce ----------------------------------------------------------
+  - id: R6-10-ecommerce-declarations
+    citation: "Rule 6(10) - mandatory declarations to be displayed on the e-commerce platform"
+    title: Declarations visible on the listing
+    severity: CRITICAL
+    verification: NEEDS_GAZETTE_CHECK
+    applies_when: { scan_source: ECOMMERCE_LISTING }
+    check:
+      op: all_declared
+      fields: [manufacturer, common_name, net_quantity, mrp]
+    remedy: "Display every mandatory declaration on the product listing itself, not only on the pack."
+
+  - id: R6-10A-coo-filter
+    citation: "Rule 6(10A) - searchable and sortable country-of-origin filter (in force 01.07.2026)"
+    title: Country-of-origin filter on the platform
+    severity: CRITICAL
+    verification: NEEDS_GAZETTE_CHECK
+    scope: platform
+    applies_when: { scan_source: ECOMMERCE_LISTING, origin_is_imported: true }
+    check: { op: platform_country_filter }
+    remedy: >-
+      Expose imported products through a country-of-origin filter that is both
+      searchable and sortable on the platform's listing pages.
+    note: >-
+      Inserted by the Amendment Rules, 2026 and in force since 01.07.2026. This
+      is architecture-level compliance: declaring the country on the page is no
+      longer enough if a consumer cannot filter or sort by it.

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Data & artifacts
+data/uploads/
+data/evidence/
+data/models/
+*.db
+*.sqlite3
+docs/accuracy.generated.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
