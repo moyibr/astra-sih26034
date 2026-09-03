@@ -1,0 +1,20 @@
+[project]
+name = "astra-vision"
+version = "0.1.0"
+description = "Calibration, OCR, glyph measurement and field extraction."
+requires-python = ">=3.11"
+dependencies = [
+    "astra-schema", "astra-rules",
+    "opencv-python-headless>=4.9", "numpy>=1.26", "pillow>=10",
+    "rapidocr>=3", "onnxruntime>=1.17", "zxing-cpp>=2",
+]
+
+[project.optional-dependencies]
+llm = ["anthropic>=0.40"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["vision*"]

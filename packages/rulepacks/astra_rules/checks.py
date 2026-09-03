@@ -580,8 +580,11 @@ def width_ratio_gte(ctx: CheckContext) -> CheckOutcome:
             core = [c for c in span.text if c not in _WIDTH_RATIO_EXEMPT_CHARS and not c.isspace()]
             if not core:
                 continue
-            per_char_width = span.ink_width_px / max(1, len(span.text.replace(" ", "")))
-            ratio = per_char_width / span.ink_height_px
+            # ink_width_px is already the *mean width of one glyph*, not the
+            # width of the whole span, so it compares directly against the glyph
+            # height. Dividing it by the character count as well collapses every
+            # ratio towards zero and reports condensed type on every label.
+            ratio = span.ink_width_px / span.ink_height_px
             if worst is None or ratio < worst[0]:
                 worst = (ratio, span)
 
