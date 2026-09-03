@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "packages" / "rulepacks" / "tests"))
 
-from conftest import PACK_ID, barcode_scale, compliant, good_scale, span  # noqa: E402
+from label_fixtures import PACK_ID, barcode_scale, compliant, good_scale, span  # noqa: E402
 
 from astra_rules import evaluate  # noqa: E402
 from astra_schema import (  # noqa: E402

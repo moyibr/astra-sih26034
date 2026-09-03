@@ -26,7 +26,7 @@ from astra_schema import (
     Severity,
 )
 
-from conftest import PACK_ID, barcode_scale, compliant, good_scale, span
+from label_fixtures import PACK_ID, barcode_scale, compliant, good_scale, span
 
 
 def status_of(report, rule_id: str) -> FindingStatus:
