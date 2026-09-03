@@ -87,8 +87,11 @@ export default async function DashboardPage() {
           tone="undecided"
           hint="Not alleged against anyone"
         />
+        {/* Not "shot without a card": a listing's declared dimensions are a
+            usable ruler too. What this counts is inspections where no reference
+            good enough to measure against was available at all. */}
         <Stat
-          label="Shot without a reference"
+          label="No usable ruler"
           value={
             summary.unusable_calibration_rate == null
               ? "—"
@@ -97,7 +100,7 @@ export default async function DashboardPage() {
           tone={
             (summary.unusable_calibration_rate ?? 0) > 25 ? "undecided" : "default"
           }
-          hint="Millimetre rules cannot be decided"
+          hint="Millimetre rules could not be decided"
         />
       </div>
 

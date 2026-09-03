@@ -68,6 +68,18 @@ export function ViolationMap({ points }: { points: HeatPoint[] }) {
         {ordered.map((point) => {
           const { x, y } = project(point.lat, point.lon);
           const radius = 3 + Math.min(point.critical, 4) * 1.6;
+          // Built as one string on purpose. The HTML parser treats <title> as
+          // raw text, so the separators React puts between sibling text nodes
+          // are swallowed into the text itself and hydration finds one node
+          // where it expected several.
+          const tooltip = [
+            [point.district, point.state].filter(Boolean).join(", "),
+            point.brand ? ` — ${point.brand}` : "",
+            ` (${point.verdict.toLowerCase().replace(/_/g, " ")}`,
+            point.critical
+              ? `, ${point.critical} critical violation${point.critical === 1 ? "" : "s"})`
+              : ")",
+          ].join("");
           return (
             <circle
               key={point.id}
@@ -80,14 +92,7 @@ export function ViolationMap({ points }: { points: HeatPoint[] }) {
               strokeOpacity={0.5}
               strokeWidth={0.5}
             >
-              <title>
-                {[point.district, point.state].filter(Boolean).join(", ")}
-                {point.brand ? ` — ${point.brand}` : ""}
-                {` (${point.verdict.toLowerCase().replace(/_/g, " ")}`}
-                {point.critical
-                  ? `, ${point.critical} critical violation${point.critical === 1 ? "" : "s"})`
-                  : ")"}
-              </title>
+              <title>{tooltip}</title>
             </circle>
           );
         })}
