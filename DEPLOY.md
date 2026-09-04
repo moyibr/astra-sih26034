@@ -49,19 +49,23 @@ memory, and the fix is Render's paid tier or a smaller detection model.
 
 ## 2. The frontend, on Vercel
 
-Already deployed. It is built against the Render URL above, so it starts working
-the moment the API is live.
+1. Go to **[vercel.com/new](https://vercel.com/new)** and **Continue with GitHub**.
+2. **Import** the `astra-sih26034` repository.
+3. Set **Root Directory** to `apps/web`. This is the only setting that matters —
+   the repository is a monorepo and Vercel defaults to the top level, where there
+   is no Next.js app.
+4. **Deploy**.
 
-To redeploy after changing the frontend:
+The build takes about two minutes. You get `https://astra-sih26034.vercel.app`,
+and every later `git push` redeploys it automatically.
 
-```bash
-cd apps/web && npx vercel --prod
-```
+It is already built against the Render URL above — `apps/web/.env.production`
+carries it — so it starts working the moment the API is awake.
 
-If the API ends up on a different URL than the one above — because the service
-name was taken, say — set `NEXT_PUBLIC_API_BASE_URL` in the Vercel project's
-environment variables and redeploy. It is read at build time, not at run time,
-so a redeploy is required.
+If the API ends up on a different hostname, because the service name was taken,
+change it in `apps/web/.env.production`, commit and push. It is inlined at build
+time rather than read at run time, so a redeploy is required for it to take
+effect.
 
 ---
 
