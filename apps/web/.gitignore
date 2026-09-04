@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except these two, which hold only the public API hostname. The frontend
+# is built ahead of time and has to be told where the API lives, so the value
+# has to be in the repository for CI and for Vercel to build against.
+!.env.development
+!.env.production
 
 # vercel
 .vercel
