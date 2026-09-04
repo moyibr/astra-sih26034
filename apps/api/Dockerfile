@@ -39,7 +39,25 @@ COPY ml/ ml/
 COPY scripts/ scripts/
 
 RUN pip install --upgrade pip \
-    && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api
+    && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api \
+    # RapidOCR depends on opencv-python, the desktop build, which is compiled
+    # against X11 and drags in libraries a server image has no reason to carry.
+    # Both variants install the same `cv2` module into the same directory, so
+    # whichever lands second wins -- and when that is the desktop build, every
+    # import fails for want of libxcb. Keeping only the headless build is both
+    # the fix and 74 MB smaller. Nothing here uses a GUI function.
+    && pip uninstall -y opencv-python opencv-python-headless \
+    && pip install opencv-python-headless
+
+# Fail the build here, loudly, if OpenCV cannot load.
+#
+# This check exists because its absence cost a deployment. The model prefetch
+# below is allowed to fail, since a download is a network problem rather than a
+# broken image -- but that tolerance also swallowed a genuine ImportError and
+# let the build continue to a far more confusing failure several steps later.
+# A tolerant step must never be the first thing to touch a fragile import.
+RUN python -c "import cv2; print('opencv', cv2.__version__)" \
+    && python -c "import zxingcpp, numpy; print('vision deps ok')"
 
 # Bake the OCR models into the image. Downloading them on first request would
 # mean the container needs the internet to answer its first scan, and the whole
