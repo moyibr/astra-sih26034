@@ -39,6 +39,14 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    cors_origin_regex: str | None = None
+    """Pattern for origins that cannot be listed ahead of time.
+
+    The deployed frontend's hostname is not known until Vercel has built it, and
+    every preview branch gets its own. A regex covering the project's own
+    deployments breaks that deadlock; it is deliberately not a wildcard.
+    """
+
     def ensure_dirs(self) -> None:
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self.evidence_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,12 @@ FROM python:3.12-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    # ONNX Runtime and OpenCV each spawn a thread pool per core by default,
+    # which on a small instance costs far more memory than the parallelism is
+    # worth. A scan is a few seconds either way.
+    OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1
 
 # OpenCV needs these even in its headless build.
 RUN apt-get update && apt-get install --no-install-recommends -y \
@@ -30,6 +35,8 @@ COPY apps/api/pyproject.toml apps/api/
 COPY packages/ packages/
 COPY apps/vision/ apps/vision/
 COPY apps/api/ apps/api/
+COPY ml/ ml/
+COPY scripts/ scripts/
 
 RUN pip install --upgrade pip \
     && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api
@@ -40,9 +47,22 @@ RUN pip install --upgrade pip \
 RUN python -c "from rapidocr import RapidOCR; RapidOCR()" || \
     echo "model prefetch skipped; they will download on first use"
 
+# Bake a demo dataset in at build time rather than seeding on boot.
+#
+# Seeding takes a couple of minutes, which a platform health check will not wait
+# for, and a hosting tier with an ephemeral filesystem would make the container
+# redo it on every wake. Building it into the image means the dashboard has
+# something to show the instant it starts, and that scans a visitor creates
+# during a session sit on top of a known-good baseline.
+ARG SEED_COUNT=45
+RUN python scripts/seed_demo.py --count ${SEED_COUNT} \
+    && python -c "import pathlib; print('seeded', len(list(pathlib.Path('data/uploads').glob('*'))), 'images')"
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:${PORT:-8000}/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "apps/api"]
+# Shell form so ${PORT} is expanded. Hosting platforms assign the port at run
+# time and expect the process to bind to it.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --app-dir apps/api
