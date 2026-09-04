@@ -225,6 +225,16 @@ export function Breadcrumb({ items }: { items: { label: string; href?: string }[
   );
 }
 
+/**
+ * Format an instant in Indian Standard Time.
+ *
+ * The timezone is pinned rather than left to the machine, for two reasons. It
+ * is correct: an inspection happened at a time of day in India, and a hosting
+ * region should not change what an officer reads. And it is necessary: this
+ * renders on the server and again in the browser, and once those two are in
+ * different zones — a UTC host and a viewer in India — they disagree, React
+ * finds a hydration mismatch, and the page silently re-renders from scratch.
+ */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
@@ -234,6 +244,7 @@ export function formatDateTime(iso: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Kolkata",
   });
 }
 
