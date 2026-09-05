@@ -37,7 +37,17 @@ const NAV = [
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
-      <body className="flex min-h-full flex-col">
+      {/*
+        suppressHydrationWarning covers this element's own attributes only, not
+        its subtree, so a real mismatch anywhere in the app is still reported.
+        It is here because extensions -- Grammarly is the usual one -- stamp
+        attributes like data-gr-ext-installed onto <body> before React
+        hydrates, which React cannot tell apart from our own markup drifting.
+        Nothing sets a dynamic attribute on <body>, so there is nothing here
+        worth warning about, and an inspector demonstrating this should not be
+        met with a red overlay caused by their own browser.
+      */}
+      <body className="flex min-h-full flex-col" suppressHydrationWarning>
         <header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
             <Link href="/" className="flex items-center gap-2.5">
