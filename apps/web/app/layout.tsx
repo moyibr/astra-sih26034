@@ -34,6 +34,8 @@ const NAV = [
   { href: "/rulepack", label: "Rule pack" },
 ];
 
+const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA ?? "dev";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
@@ -82,8 +84,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </main>
 
         <footer className="border-t border-line px-4 py-4 text-center text-xs text-muted sm:px-6">
-          ASTRA triages, measures and evidences. It does not issue legal notices —
-          a notice drafted here has no effect until a Legal Metrology Officer signs it.
+          <p>
+            ASTRA triages, measures and evidences. It does not issue legal notices —
+            a notice drafted here has no effect until a Legal Metrology Officer signs it.
+          </p>
+          {/* The commit this page was built from. Deployments are cached at the
+              edge for minutes at a time, so without this there is no way to
+              tell what is actually live short of guessing. */}
+          <p className="mt-1.5">
+            <a
+              href={`https://github.com/moyibr/astra-sih26034/commit/${BUILD_SHA}`}
+              className="font-mono hover:underline"
+              title="The commit this build was made from"
+            >
+              build {BUILD_SHA}
+            </a>
+          </p>
         </footer>
       </body>
     </html>
