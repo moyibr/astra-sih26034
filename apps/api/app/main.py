@@ -111,4 +111,5 @@ def health() -> dict:
         "rulepack": pack.identifier,
         "rules": len(pack.rules),
         "scanning": scanning.scanning_available(),
+        "writes": settings.writes_enabled,
     }

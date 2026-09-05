@@ -86,10 +86,46 @@ def _sqlite_path() -> pathlib.Path | None:
     return pathlib.Path(raw) if raw else None
 
 
+def _add_missing_columns() -> None:
+    """Bring an existing SQLite database up to the current model.
+
+    `create_all` creates missing tables and nothing else, so adding a column to
+    a model leaves every database that already exists -- including the demo
+    bundle committed to the repository -- failing on the next query with `no
+    such column`. That is precisely how the signature column broke the test
+    suite, and it would have broken the deployment the same way.
+
+    Additive only, and deliberately so. Adding a nullable column is safe to
+    apply repeatedly and cannot lose data; anything that drops or rewrites is
+    a migration tool's job, and the moment this project needs one it should
+    take Alembic rather than grow this function.
+    """
+    if not _is_sqlite:
+        return
+
+    with engine.begin() as connection:
+        for table in Base.metadata.sorted_tables:
+            existing = {
+                row[1]
+                for row in connection.exec_driver_sql(f"PRAGMA table_info({table.name})")
+            }
+            if not existing:
+                continue  # create_all will make it
+            for column in table.columns:
+                if column.name in existing or not column.nullable:
+                    continue
+                type_sql = column.type.compile(engine.dialect)
+                connection.exec_driver_sql(
+                    f"ALTER TABLE {table.name} ADD COLUMN {column.name} {type_sql}"
+                )
+                log.info("added missing column %s.%s", table.name, column.name)
+
+
 def init_db() -> None:
     settings.ensure_dirs()
     _install_demo_bundle()
     Base.metadata.create_all(engine)
+    _add_missing_columns()
 
 
 def get_session() -> Iterator[Session]:

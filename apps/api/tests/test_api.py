@@ -239,25 +239,29 @@ def test_only_a_named_officer_gives_a_notice_effect(client, undersized_png):
     scan = _post_scan(client, undersized_png)
     notice = client.post(f"/api/scans/{scan['id']}/notice", json={}).json()
 
-    signed = client.post(
-        f"/api/notices/{notice['id']}/sign", json={"officer_id": "LMO-0042"}
-    ).json()
+    signed = client.post(f"/api/notices/{notice['id']}/sign", json={}).json()
     assert signed["status"] == "SIGNED"
-    assert signed["signed_by"] == "LMO-0042"
     assert signed["signed_at"]
+
+    # The officer comes from the credential, not the request. It used to be a
+    # field in the body, which meant a notice could be signed in anyone's name.
+    assert signed["signed_by"] == "LMO-0007"
 
     # Signing is not idempotent: a second signature is a workflow error.
     assert client.post(
-        f"/api/notices/{notice['id']}/sign", json={"officer_id": "LMO-0099"}
+        f"/api/notices/{notice['id']}/sign", json={}
     ).status_code == 409
 
 
-def test_signing_requires_an_officer_identity(client, undersized_png):
+def test_signing_requires_an_officer_identity(anon, client, undersized_png):
+    """Unsigned means unauthenticated, not merely un-named.
+
+    This endpoint is the only thing that gives a notice legal effect, so a
+    request without a credential must not reach it.
+    """
     scan = _post_scan(client, undersized_png)
     notice = client.post(f"/api/scans/{scan['id']}/notice", json={}).json()
-    assert client.post(
-        f"/api/notices/{notice['id']}/sign", json={"officer_id": ""}
-    ).status_code == 422
+    assert anon.post(f"/api/notices/{notice['id']}/sign", json={}).status_code == 401
 
 
 # -- analytics ---------------------------------------------------------------

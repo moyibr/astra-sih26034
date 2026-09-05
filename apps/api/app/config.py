@@ -68,6 +68,24 @@ class Settings(BaseSettings):
     is not offered here.
     """
 
+    writes_enabled: bool = True
+    """Whether this deployment accepts anything that changes state.
+
+    The public instance sets this false. It exists to show recorded
+    inspections and the rule pack, and nothing there should be alterable by
+    whoever happens to open the link -- which, until officers were introduced,
+    was anyone at all. Read-only by construction beats read-only by hoping the
+    credential does not leak.
+    """
+
+    officers: str = Field(default="", validation_alias=astra("officers"))
+    """Officers who may record decisions: `token:id:Name`, comma separated.
+
+    Empty by default, so a fresh checkout cannot accidentally ship a working
+    credential. Parsed in app/auth.py, which is also the seam a pilot would
+    replace with the department's own directory.
+    """
+
     llm_normaliser_enabled: bool = False
 
     cors_origins: list[str] = [

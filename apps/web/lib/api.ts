@@ -30,6 +30,35 @@ export const API_BASE =
  * to run uvicorn is both useless and untrue. */
 export const IS_LOCAL_API = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(API_BASE);
 
+/** The signed-in officer's token, held only in this browser.
+ *
+ * Every state-changing request is recorded against a named officer, so the API
+ * refuses one without a credential. The token is what the officer was issued;
+ * it is never sent on reads, which stay open so the dashboard remains
+ * linkable. */
+const TOKEN_KEY = "astra.officer.token";
+
+export function officerToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(TOKEN_KEY);
+  } catch {
+    // Private windows and blocked site data both throw here. Signing in for
+    // this session only is better than a page that will not load.
+    return null;
+  }
+}
+
+export function setOfficerToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) window.localStorage.setItem(TOKEN_KEY, token);
+    else window.localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* nothing to do; the request will simply be refused */
+  }
+}
+
 export const UNREACHABLE_MESSAGE = IS_LOCAL_API
   ? `Could not reach the ASTRA API at ${API_BASE}. Is it running?`
   : "The API did not answer in time. The public instance sleeps after fifteen " +
@@ -48,11 +77,19 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Reads are public; only a state-changing request carries an identity, and
+  // only when the officer has signed in.
+  const token = init?.method && init.method !== "GET" ? officerToken() : null;
+
   let response: Response;
   try {
     response = await fetchWithOneRetry(`${API_BASE}${path}`, {
       cache: "no-store",
       ...init,
+      headers: {
+        ...(init?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
   } catch (cause) {
     throw new ApiError(UNREACHABLE_MESSAGE, 0, cause);
@@ -131,6 +168,10 @@ export const api = {
        *  it runs without the OCR stack, because the free tier's tenth of a CPU
        *  would take about a minute per scan. */
       scanning?: boolean;
+      /** Whether this deployment accepts anything that changes state. The
+       *  public showcase does not: nothing there should be alterable by
+       *  whoever opens the link. */
+      writes?: boolean;
     }>("/health", init),
 
   listScans: (params: {
@@ -153,7 +194,7 @@ export const api = {
 
   overrideFinding: (
     id: string,
-    body: { rule_id: string; officer_status: string; officer_id: string; reason: string },
+    body: { rule_id: string; officer_status: string; reason: string },
   ) =>
     request<ScanDetail>(`/api/scans/${id}/override`, {
       method: "POST",
@@ -173,11 +214,11 @@ export const api = {
       body: JSON.stringify({ addressee: addressee || null }),
     }),
 
-  signNotice: (noticeId: string, officerId: string) =>
+  signNotice: (noticeId: string) =>
     request<NoticeRecord>(`/api/notices/${noticeId}/sign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ officer_id: officerId }),
+      body: JSON.stringify({}),
     }),
 
   summary: () => request<AnalyticsSummary>("/api/analytics/summary"),

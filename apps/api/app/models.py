@@ -145,4 +145,12 @@ class Notice(Base):
     signed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    signature: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """HMAC over the notice's reference, evidence digest, officer and time.
+
+    A notice is the one artefact here with legal consequences, and the footer
+    has always claimed it has none until an officer signs. This makes the
+    signature checkable: alter the body, the addressee, the officer or the
+    timestamp afterwards and it stops verifying. See services/signing.py."""
+
     scan: Mapped[Scan] = relationship(back_populates="notices")

@@ -138,11 +138,13 @@ docs/rule-citations.md   every citation, and what still needs gazette checking
 | `ml/eval` — synthetic ground truth, accuracy report | ✅ |
 | E-commerce catalogue ingestion, incl. the Rule 6(10A) platform check | ✅ |
 | Browse-only deployment that runs without the OCR stack | ✅ |
+| Officer authentication on every decision that is recorded | ✅ |
+| Tamper-evident signed notices | ✅ |
 | Golden set of photographed labels | ⬜ needs photographs |
 | Live crawler for platform listing pages | ⬜ next |
 | Confirming 13 citations against the gazette text | ⬜ [see docs](docs/rule-citations.md) |
 
-107 tests passing.
+128 tests passing.
 
 ## A note on authority
 

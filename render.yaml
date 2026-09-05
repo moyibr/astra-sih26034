@@ -63,6 +63,20 @@ services:
       - key: WARM_OCR_ON_STARTUP
         value: "false"
 
+      # Read-only by construction, not by hoping a credential stays secret.
+      #
+      # This instance publishes recorded inspections and the rule pack. Until
+      # officers existed, its "Record override" and "Draft notice" buttons were
+      # live on the open internet with no authentication at all -- anyone could
+      # overturn a finding or sign a legal notice in any officer's name.
+      #
+      # Authentication now exists, and this says the showcase declines writes
+      # regardless. A departmental instance sets it true and configures
+      # ASTRA_OFFICERS; nothing here should be alterable by whoever opens the
+      # link.
+      - key: WRITES_ENABLED
+        value: "false"
+
       # The Vercel hostname is not known until the frontend has been built, and
       # every preview branch gets a different one. This matches the project's
       # own deployments rather than opening the API to any origin.

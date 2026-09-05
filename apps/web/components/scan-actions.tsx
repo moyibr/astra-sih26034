@@ -6,6 +6,12 @@ import { useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { Finding, NoticeRecord, ScanDetail } from "@/lib/types";
 import { Card, CardHeader, ErrorNote, formatDateTime } from "@/components/ui";
+import {
+  OfficerSignIn,
+  ReadOnlyNote,
+  SignedInBar,
+  useWriteAccess,
+} from "@/components/officer";
 
 /**
  * The officer's side of the workflow.
@@ -24,6 +30,7 @@ export function ScanActions({ scan }: { scan: ScanDetail }) {
   const [busy, setBusy] = useState(false);
 
   const violations = scan.report.findings.filter((f) => f.status === "FAIL");
+  const [access, setAccess] = useWriteAccess();
 
   async function draft() {
     setBusy(true);
@@ -38,12 +45,12 @@ export function ScanActions({ scan }: { scan: ScanDetail }) {
     }
   }
 
-  async function sign(officerId: string) {
+  async function sign() {
     if (!notice) return;
     setBusy(true);
     setError(null);
     try {
-      setNotice(await api.signNotice(notice.id, officerId));
+      setNotice(await api.signNotice(notice.id));
       router.refresh();
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not sign the notice.");
@@ -52,8 +59,23 @@ export function ScanActions({ scan }: { scan: ScanDetail }) {
     }
   }
 
+  // Nothing that changes a record is offered until it is clear the deployment
+  // accepts one and the officer has identified themselves. Showing controls
+  // that cannot work, and only saying so after they are used, is worse than
+  // saying so first.
+  if (access === "checking") {
+    return <div className="h-32 animate-pulse rounded-xl border border-line bg-surface-2" />;
+  }
+  if (access === "unavailable") {
+    return <ReadOnlyNote />;
+  }
+  if (access === "locked") {
+    return <OfficerSignIn onSignedIn={() => setAccess("ready")} />;
+  }
+
   return (
     <div className="space-y-5">
+      <SignedInBar onSignOut={() => setAccess("locked")} />
       <OverrideForm scan={scan} onDone={() => router.refresh()} />
 
       <Card>
@@ -116,37 +138,25 @@ export function ScanActions({ scan }: { scan: ScanDetail }) {
   );
 }
 
-function SignForm({
-  busy,
-  onSign,
-}: {
-  busy: boolean;
-  onSign: (officerId: string) => void;
-}) {
-  const [officerId, setOfficerId] = useState("");
+function SignForm({ busy, onSign }: { busy: boolean; onSign: () => void }) {
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (officerId.trim().length >= 2) onSign(officerId.trim());
+        onSign();
       }}
       className="rounded-lg border border-line bg-surface-2 p-4"
     >
       <p className="text-sm font-medium">Sign as the issuing officer</p>
       <p className="mt-1 text-xs text-muted">
-        Signing is what gives this notice effect. Your identifier is recorded
-        against it permanently.
+        Signing is what gives this notice effect. It is recorded against the
+        officer you signed in as, permanently, and the record is sealed so a
+        later edit is detectable.
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input
-          value={officerId}
-          onChange={(e) => setOfficerId(e.target.value)}
-          placeholder="Officer ID, e.g. LMO-0042"
-          className="min-w-56 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-        />
+      <div className="mt-3">
         <button
           type="submit"
-          disabled={busy || officerId.trim().length < 2}
+          disabled={busy}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-40"
         >
           {busy ? "Signing…" : "Sign notice"}
@@ -165,7 +175,6 @@ function OverrideForm({
 }) {
   const [ruleId, setRuleId] = useState("");
   const [officerStatus, setOfficerStatus] = useState("PASS");
-  const [officerId, setOfficerId] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +191,6 @@ function OverrideForm({
       await api.overrideFinding(scan.id, {
         rule_id: ruleId,
         officer_status: officerStatus,
-        officer_id: officerId.trim(),
         reason: reason.trim(),
       });
       setRuleId("");
@@ -258,17 +266,6 @@ function OverrideForm({
               </select>
             </label>
           </div>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted">Officer ID</span>
-            <input
-              required
-              value={officerId}
-              onChange={(e) => setOfficerId(e.target.value)}
-              placeholder="LMO-0042"
-              className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-            />
-          </label>
 
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-muted">

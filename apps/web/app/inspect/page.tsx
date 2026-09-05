@@ -125,11 +125,14 @@ export default function InspectPage() {
     setError(null);
     setResult(null);
 
+    // No inspector_id here. It used to be hardcoded to "LMO-0042", so every
+    // scan the PWA ever took was attributed to one fictional officer -- an
+    // audit trail that agreed with itself and with nothing else. The API takes
+    // it from the authenticated officer instead.
     const form = new FormData();
     form.set("image", file);
     form.set("shape", shape);
     form.set("is_perishable", String(perishable));
-    form.set("inspector_id", "LMO-0042");
     if (heightMm) form.set("height_mm", heightMm);
     if (shape === "CYLINDRICAL" ? diameterMm : widthMm) {
       form.set(shape === "CYLINDRICAL" ? "diameter_mm" : "width_mm",

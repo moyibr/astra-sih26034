@@ -19,7 +19,10 @@ from astra_rules import evaluate
 from vision.adapters import listing as adapter
 
 from ..config import settings
+from ..auth import CurrentOfficer
 from ..db import get_session
+from ..ratelimit import limit_writes
+from ..uploads import read_capped
 from ..models import Scan
 
 log = logging.getLogger(__name__)
@@ -54,17 +57,15 @@ def sample_csv() -> dict:
     }
 
 
-@router.post("/import", response_model=ImportResult, status_code=201)
+@router.post("/import", response_model=ImportResult, status_code=201,
+             dependencies=[Depends(limit_writes)])
 async def import_catalogue(
     session: Annotated[Session, Depends(get_session)],
     file: Annotated[UploadFile, File(description="Catalogue export, CSV")],
+    officer: CurrentOfficer,
     dry_run: Annotated[bool, Query(description="Assess without persisting")] = False,
 ) -> ImportResult:
-    payload = await file.read()
-    if not payload:
-        raise HTTPException(400, "empty upload")
-    if len(payload) > MAX_CSV_BYTES:
-        raise HTTPException(413, "catalogue exceeds 10 MB")
+    payload = await read_capped(file, MAX_CSV_BYTES, what="catalogue")
 
     try:
         listings = adapter.parse_csv(payload)

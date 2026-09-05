@@ -77,7 +77,47 @@ export default async function ScansPage({
           .
         </EmptyState>
       ) : (
-        <Card className="overflow-hidden">
+        <>
+        {/* A phone gets cards, not a nine-column table.
+            The inspector app is used one-handed in a shop, and a table there
+            shows three columns and hides the score, the critical count and the
+            date behind a sideways scroll -- on the device this was built for.
+            The table returns at sm, where there is room for it. */}
+        <div className="space-y-2 sm:hidden">
+          {scans.map((scan) => (
+            <Link
+              key={scan.id}
+              href={`/scans/${scan.id}`}
+              className="block rounded-xl border border-line bg-surface p-4 hover:bg-surface-2"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <VerdictBadge verdict={scan.verdict} />
+                <span className="text-sm font-semibold tabular-nums">
+                  {scan.compliance_score.toFixed(1)}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-medium">{scan.brand ?? "Unbranded"}</p>
+              <p className="text-xs text-muted">
+                {[scan.premises, scan.district, scan.state].filter(Boolean).join(" · ") ||
+                  scan.commodity_category ||
+                  "Location not recorded"}
+              </p>
+              <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                {scan.critical_violations > 0 ? (
+                  <span className="font-medium text-fail">
+                    {scan.critical_violations} critical
+                  </span>
+                ) : null}
+                {scan.indeterminate > 0 ? (
+                  <span className="text-undecided">{scan.indeterminate} undecided</span>
+                ) : null}
+                <span>{formatDateTime(scan.created_at)}</span>
+              </p>
+            </Link>
+          ))}
+        </div>
+
+        <Card className="hidden overflow-hidden sm:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-4xl text-sm">
               <thead>
@@ -152,6 +192,7 @@ export default async function ScansPage({
             </table>
           </div>
         </Card>
+        </>
       )}
     </div>
   );
