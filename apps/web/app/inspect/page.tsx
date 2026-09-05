@@ -54,16 +54,23 @@ export default function InspectPage() {
   const [result, setResult] = useState<ScanDetail | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  // null while unknown. A deployment without the OCR stack says so through
-  // /health, and this page then explains itself rather than offering a camera
-  // that would only fail.
-  const [scanningEnabled, setScanningEnabled] = useState<boolean | null>(null);
+  // Three states, not two. Whether this deployment can scan is only known once
+  // /health answers, and rendering the form in the meantime makes it appear for
+  // a moment and then vanish -- which reads as a bug even when the outcome is
+  // right. So nothing commits to a layout until the answer arrives.
+  const [scanning, setScanning] = useState<"checking" | "available" | "unavailable">(
+    "checking",
+  );
 
   useEffect(() => {
     api
       .health()
-      .then((h) => setScanningEnabled(h.scanning ?? true))
-      .catch(() => setScanningEnabled(null));
+      .then((h) => setScanning(h.scanning === false ? "unavailable" : "available"))
+      // An unreachable /health is not the same as a deployment that declines to
+      // scan. Offering the form is the more useful guess: a local API that is
+      // briefly down should not make the page look browse-only, and submitting
+      // will report the real error anyway.
+      .catch(() => setScanning("available"));
   }, []);
 
   // Revoke the object URL when the preview changes, or a long session in the
@@ -146,7 +153,7 @@ export default function InspectPage() {
         </p>
       </header>
 
-      {scanningEnabled === false ? (
+      {scanning === "unavailable" ? (
         <Card className="mb-6 p-6">
           <h2 className="text-base font-semibold">
             Live scanning runs on the local build, not here
@@ -189,7 +196,14 @@ export default function InspectPage() {
         </Card>
       ) : null}
 
-      {scanningEnabled !== false ? (
+
+      {scanning === "checking" ? (
+        <div
+          className="mb-6 h-40 animate-pulse rounded-xl border border-line bg-surface-2"
+          aria-label="Checking whether this deployment can scan"
+        />
+      ) : null}
+      {scanning === "available" ? (
         <>
       <div className="mb-6 rounded-xl border border-accent/25 bg-accent-soft px-5 py-4">
         <h2 className="text-sm font-semibold">Put a card in the frame</h2>
