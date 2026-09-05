@@ -120,6 +120,13 @@ def check_data() -> None:
     else:
         fail("demo bundle missing", "make demo-bundle")
 
+    # Present on disk is not the same as present in the repository, and a
+    # deployment only gets what git carries. A `*.db` rule once re-excluded the
+    # database while leaving its images tracked, which would have restored 45
+    # photographs and no records to attach them to -- an empty dashboard, with
+    # nothing locally to suggest anything was wrong.
+    _check_bundle_is_committed(bundle)
+
     db_path = pathlib.Path(settings.database_url.split("///", 1)[-1])
     if db_path.exists():
         try:
@@ -137,6 +144,27 @@ def check_data() -> None:
             warn("could not read the working database", str(exc))
     else:
         ok("working database absent", "it will seed from the committed bundle on boot")
+
+
+def _check_bundle_is_committed(bundle: pathlib.Path) -> None:
+    import subprocess
+
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", str(bundle.relative_to(ROOT).as_posix())],
+            cwd=ROOT, capture_output=True, text=True, timeout=10,
+        )
+    except Exception:
+        warn("could not ask git whether the demo bundle is tracked", "is git on PATH?")
+        return
+
+    if tracked.returncode == 0:
+        ok("demo bundle tracked by git", "a deployment will receive it")
+    else:
+        fail(
+            "the demo database exists locally but is not tracked by git",
+            "check .gitignore ordering, then: git add -f data/demo/astra.db",
+        )
 
 
 def check_ports() -> None:

@@ -25,10 +25,6 @@ dist/
 data/uploads/
 data/evidence/
 data/models/
-# ...but the demo bundle is committed on purpose: it is what lets a deployment
-# start with inspections to show without running OCR during its build.
-!data/demo/
-!data/demo/**
 *.db
 *.sqlite3
 docs/accuracy.generated.md
@@ -38,3 +34,13 @@ docs/accuracy.generated.md
 Thumbs.db
 .idea/
 .vscode/
+
+# The demo bundle is committed on purpose: it is what lets a deployment start
+# with inspections to show without running OCR during its build.
+#
+# These negations must come last. gitignore resolves by last-match-wins, and
+# the `*.db` rule above would otherwise re-exclude the database while leaving
+# its evidence images tracked -- a bundle that restores 45 photographs and no
+# records to attach them to.
+!data/demo/
+!data/demo/**
