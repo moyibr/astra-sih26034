@@ -181,7 +181,10 @@ def test_identical_pixels_do_not_convict_when_only_a_barcode_calibrated_them():
     report = evaluate(fields, PACK_ID)
     assert status_of(report, "R9-T1-netqty-height") is FindingStatus.INDETERMINATE
     assert report.calibration_note is not None
-    assert "ID-card-sized" in report.calibration_note
+    # The note has to tell the inspector what to do differently, and do it
+    # without asking them to photograph an identity document.
+    assert "wallet-sized card" in report.calibration_note
+    assert "Aadhaar" not in report.calibration_note
 
 
 def test_tiny_print_is_still_convictable_with_a_good_ruler():

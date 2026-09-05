@@ -38,8 +38,9 @@ from .pack import RulePack
 _WIDTH_RATIO_EXEMPT_CHARS = {"1", "i", "I", "l", ".", ",", ":", "-", "/", "|", "!"}
 
 _CALIBRATION_HINT = (
-    "Place any ID-card-sized card (Aadhaar, PAN or a debit card) flat beside the "
-    "pack and re-shoot, so the millimetre scale can be recovered."
+    "Place any wallet-sized card flat beside the pack and re-shoot, so the "
+    "millimetre scale can be recovered. A spare metro or loyalty card is "
+    "ideal; there is no need to photograph an identity document."
 )
 
 

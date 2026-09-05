@@ -8,9 +8,11 @@ We try four references in descending order of trustworthiness and record which
 one succeeded, because a finding is only as defensible as the ruler behind it:
 
 1. **ArUco fiducial** -- a printed marker, most accurate, but needs preparation.
-2. **ID-1 card** -- any Aadhaar, PAN, debit or credit card. ISO/IEC 7810 fixes
-   these at 85.60 x 53.98 mm worldwide, and every inspector already carries one.
-   This is the practical field workflow.
+2. **ID-1 card** -- any wallet card. ISO/IEC 7810 fixes the format at
+   85.60 x 53.98 mm worldwide, so a metro card, a loyalty card or an expired
+   debit card all work. Deliberately not an identity document: asking someone
+   to photograph an Aadhaar or PAN card to check a packet of biscuits is a
+   privacy cost the measurement does not need.
 3. **Declared package dimensions** -- available on e-commerce listings, which
    must carry them.
 4. **EAN-13 barcode** -- last resort, and deliberately so. The symbol is

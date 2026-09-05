@@ -206,16 +206,29 @@ export default function InspectPage() {
       {scanning === "available" ? (
         <>
       <div className="mb-6 rounded-xl border border-accent/25 bg-accent-soft px-5 py-4">
-        <h2 className="text-sm font-semibold">Put a card in the frame</h2>
+        <h2 className="text-sm font-semibold">
+          Optional: a card in the frame, for the four size rules
+        </h2>
         <p className="mt-1 text-sm">
-          Lay any ID-card-sized card — Aadhaar, PAN, or a debit card — flat beside
-          the package before you shoot. Every such card is 85.60 × 53.98 mm by
-          international standard, which is what lets the system measure print
-          height in millimetres.
+          Eighteen of the twenty-two rules need no reference at all — a missing
+          MRP or an incomplete consumer-care block is visible without measuring
+          anything. Four are about how <em>tall</em> the print is, and those need
+          something of known size in the photograph to convert pixels into
+          millimetres.
         </p>
         <p className="mt-2 text-sm">
-          Without one, the font-size rules are reported as{" "}
-          <strong>undecided</strong> rather than guessed at.
+          Any card works. A spare metro card, a loyalty card, an expired debit
+          card — every wallet card is 85.60&nbsp;×&nbsp;53.98&nbsp;mm under
+          ISO/IEC&nbsp;7810.{" "}
+          <strong>Use something you would not mind photographing;</strong>{" "}
+          there is no reason to put an identity document in front of a camera.
+          A printed calibration sticker works too, and is what a department
+          would issue in practice.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          Without one, those four rules come back{" "}
+          <strong className="text-undecided">undecided</strong> rather than
+          guessed at. The other eighteen are unaffected.
         </p>
       </div>
 

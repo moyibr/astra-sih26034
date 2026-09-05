@@ -22,8 +22,11 @@ way to know it works is to do it.
 Pack:
 
 - The laptop, and its charger.
-- **Any ID-card-sized card** — Aadhaar, PAN, a debit card. This is the
-  measuring reference; without it the millimetre rules report *undecided*.
+- **Any wallet-sized card** — a metro card, a loyalty card, an expired debit
+  card. This is the measuring reference for the four size rules; without it
+  they report *undecided* and the other eighteen are unaffected. Do not use an
+  identity document: photographing an Aadhaar card to check a biscuit packet
+  is a question you do not want asked in the Q&A.
 - **Four or five real packets.** A compliant one and a bad one at minimum.
   Check them the night before so you know what each will say.
 - A phone with the demo video on it, in case the laptop itself fails.
