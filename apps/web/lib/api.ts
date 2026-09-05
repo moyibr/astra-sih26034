@@ -94,7 +94,7 @@ function query(params: Record<string, string | number | undefined>): string {
 }
 
 export const api = {
-  health: () =>
+  health: (init?: RequestInit) =>
     request<{
       status: string;
       rulepack: string;
@@ -103,7 +103,7 @@ export const api = {
        *  it runs without the OCR stack, because the free tier's tenth of a CPU
        *  would take about a minute per scan. */
       scanning?: boolean;
-    }>("/health"),
+    }>("/health", init),
 
   listScans: (params: {
     verdict?: string;

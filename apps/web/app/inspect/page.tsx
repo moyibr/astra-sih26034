@@ -62,15 +62,36 @@ export default function InspectPage() {
     "checking",
   );
 
+  // The public API sleeps after fifteen minutes idle and takes up to a minute
+  // to wake. Silence for that long looks like a broken page, so after a few
+  // seconds the placeholder explains itself rather than just sitting there.
+  const [waking, setWaking] = useState(false);
+
   useEffect(() => {
+    const controller = new AbortController();
+    const sayWaking = setTimeout(() => setWaking(true), 2500);
+    // A bound on the wait. Without one a sleeping instance leaves the page
+    // pending indefinitely, which is exactly what a blank box cannot survive.
+    const giveUp = setTimeout(() => controller.abort(), 45_000);
+
     api
-      .health()
+      .health({ signal: controller.signal })
       .then((h) => setScanning(h.scanning === false ? "unavailable" : "available"))
       // An unreachable /health is not the same as a deployment that declines to
       // scan. Offering the form is the more useful guess: a local API that is
       // briefly down should not make the page look browse-only, and submitting
       // will report the real error anyway.
-      .catch(() => setScanning("available"));
+      .catch(() => setScanning("available"))
+      .finally(() => {
+        clearTimeout(sayWaking);
+        clearTimeout(giveUp);
+      });
+
+    return () => {
+      clearTimeout(sayWaking);
+      clearTimeout(giveUp);
+      controller.abort();
+    };
   }, []);
 
   // Revoke the object URL when the preview changes, or a long session in the
@@ -199,9 +220,17 @@ export default function InspectPage() {
 
       {scanning === "checking" ? (
         <div
-          className="mb-6 h-40 animate-pulse rounded-xl border border-line bg-surface-2"
-          aria-label="Checking whether this deployment can scan"
-        />
+          className="mb-6 rounded-xl border border-line bg-surface-2 px-5 py-6"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-sm font-medium">Checking what this deployment can do…</p>
+          <p className="mt-1 text-sm text-muted">
+            {waking
+              ? "Waking the server. The public instance sleeps after fifteen minutes idle and can take up to a minute to start; it is quick from then on."
+              : "One moment."}
+          </p>
+        </div>
       ) : null}
       {scanning === "available" ? (
         <>
