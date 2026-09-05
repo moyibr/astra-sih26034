@@ -142,7 +142,7 @@ docs/rule-citations.md   every citation, and what still needs gazette checking
 | Live crawler for platform listing pages | ⬜ next |
 | Confirming 13 citations against the gazette text | ⬜ [see docs](docs/rule-citations.md) |
 
-97 tests passing.
+107 tests passing.
 
 ## A note on authority
 
