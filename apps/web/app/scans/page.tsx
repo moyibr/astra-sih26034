@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import {
+  ApiUnavailable,
   CALIBRATION_LABEL,
   Card,
   EmptyState,
-  ErrorNote,
   VerdictBadge,
   formatDateTime,
   isTrustworthyCalibration,
@@ -34,9 +34,10 @@ export default async function ScansPage({
     scans = await api.listScans({ verdict: verdict || undefined, limit: 200 });
   } catch (cause) {
     return (
-      <ErrorNote>
-        {cause instanceof ApiError ? cause.message : "Inspections could not load."}
-      </ErrorNote>
+      <ApiUnavailable
+        what="Inspections"
+        message={cause instanceof ApiError ? cause.message : undefined}
+      />
     );
   }
 

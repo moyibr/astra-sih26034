@@ -2,10 +2,10 @@ import Link from "next/link";
 
 import { ViolationMap } from "@/components/map";
 import {
+  ApiUnavailable,
   Card,
   CardHeader,
   EmptyState,
-  ErrorNote,
   SeverityChip,
   Stat,
 } from "@/components/ui";
@@ -39,13 +39,10 @@ export default async function DashboardPage() {
     ]);
   } catch (cause) {
     return (
-      <ErrorNote>
-        {cause instanceof ApiError
-          ? cause.message
-          : "The dashboard could not load."}{" "}
-        Start the API with <code>uvicorn app.main:app --app-dir apps/api</code>, then
-        seed some inspections with <code>python scripts/seed_demo.py</code>.
-      </ErrorNote>
+      <ApiUnavailable
+        what="The dashboard"
+        message={cause instanceof ApiError ? cause.message : undefined}
+      />
     );
   }
 

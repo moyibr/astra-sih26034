@@ -21,6 +21,21 @@ import type {
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+/** Whether we are talking to a developer's own machine or to the public one.
+ *
+ * The two failures look identical to fetch and mean completely different
+ * things. Locally an unreachable API means the process is not running and the
+ * fix is a command. On the public deployment it almost always means the free
+ * instance is asleep -- it wakes on the next request -- and telling a visitor
+ * to run uvicorn is both useless and untrue. */
+export const IS_LOCAL_API = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/.test(API_BASE);
+
+export const UNREACHABLE_MESSAGE = IS_LOCAL_API
+  ? `Could not reach the ASTRA API at ${API_BASE}. Is it running?`
+  : "The API did not answer in time. The public instance sleeps after fifteen " +
+    "minutes idle and takes up to a minute to wake, so this usually clears on a " +
+    "second attempt.";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -35,16 +50,12 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    response = await fetchWithOneRetry(`${API_BASE}${path}`, {
       cache: "no-store",
       ...init,
     });
   } catch (cause) {
-    throw new ApiError(
-      `Could not reach the ASTRA API at ${API_BASE}. Is it running?`,
-      0,
-      cause,
-    );
+    throw new ApiError(UNREACHABLE_MESSAGE, 0, cause);
   }
 
   if (!response.ok) {
@@ -63,6 +74,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/** Try once more after a network failure, which a cold start looks like.
+ *
+ * The request that fails against a sleeping instance is usually the one that
+ * wakes it, so a single retry turns a visible error into a slow page. Only
+ * network failures are retried -- an HTTP error is an answer, and asking again
+ * would only be slower. An aborted request is the caller's own decision and is
+ * never retried. */
+async function fetchWithOneRetry(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (cause) {
+    if (init.signal?.aborted || (cause as Error)?.name === "AbortError") throw cause;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return await fetch(url, init);
+  }
 }
 
 /** FastAPI reports validation problems as a list; flatten it into a sentence. */

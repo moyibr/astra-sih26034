@@ -1,3 +1,4 @@
+import { IS_LOCAL_API } from "@/lib/api";
 /**
  * Shared presentational pieces.
  *
@@ -260,4 +261,36 @@ export const CALIBRATION_LABEL: Record<string, string> = {
 
 export function isTrustworthyCalibration(source: string | null | undefined): boolean {
   return source === "ARUCO" || source === "ID1_CARD" || source === "MANUAL";
+}
+
+/** What to show when the API did not answer.
+ *
+ * The same failure means two different things depending on where the page is
+ * running, and the deployed site was showing a visitor developer commands they
+ * could not run against an API that was not actually broken -- only asleep.
+ */
+export function ApiUnavailable({
+  what,
+  message,
+}: {
+  /** What failed to load, in the reader's words: "The dashboard". */
+  what: string;
+  message?: string;
+}) {
+  return (
+    <ErrorNote>
+      <p>{message ?? `${what} could not load.`}</p>
+      {IS_LOCAL_API ? (
+        <p className="mt-2">
+          Start the API with <code>make api</code>, in a second terminal alongside
+          the frontend.
+        </p>
+      ) : (
+        <p className="mt-2">
+          Nothing is broken and there is nothing to fix &mdash; reload the page in
+          a moment and it will be up.
+        </p>
+      )}
+    </ErrorNote>
+  );
 }

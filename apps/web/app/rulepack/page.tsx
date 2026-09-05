@@ -1,4 +1,4 @@
-import { Card, CardHeader, ErrorNote, SeverityChip } from "@/components/ui";
+import { ApiUnavailable, Card, CardHeader, SeverityChip } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
 import type { RulePackDetail } from "@/lib/types";
 
@@ -11,9 +11,10 @@ export default async function RulePackPage() {
     pack = await api.activeRulepack();
   } catch (cause) {
     return (
-      <ErrorNote>
-        {cause instanceof ApiError ? cause.message : "The rule pack could not load."}
-      </ErrorNote>
+      <ApiUnavailable
+        what="The rule pack"
+        message={cause instanceof ApiError ? cause.message : undefined}
+      />
     );
   }
 
