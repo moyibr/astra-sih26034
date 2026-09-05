@@ -7,12 +7,17 @@
 
 FROM python:3.12-slim AS base
 
+# OMP_NUM_THREADS and OPENBLAS_NUM_THREADS are pinned to one because ONNX
+# Runtime and OpenCV each spawn a thread pool per core by default, which on a
+# 512 MB instance costs far more memory than the parallelism is worth. A scan
+# takes a few seconds either way.
+#
+# The comment sits above the instruction, not inside it: a `#` within a
+# backslash continuation comments out the whole remainder of the joined line,
+# which here would have quietly dropped both of those variables.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    # ONNX Runtime and OpenCV each spawn a thread pool per core by default,
-    # which on a small instance costs far more memory than the parallelism is
-    # worth. A scan is a few seconds either way.
     OMP_NUM_THREADS=1 \
     OPENBLAS_NUM_THREADS=1
 
@@ -38,14 +43,21 @@ COPY apps/api/ apps/api/
 COPY ml/ ml/
 COPY scripts/ scripts/
 
+# RapidOCR depends on opencv-python, the desktop build, which is compiled
+# against X11 and drags in libraries a server image has no reason to carry.
+# Both variants install the same `cv2` module into the same directory, so
+# whichever lands second wins -- and when that is the desktop build, every
+# import fails for want of libxcb. Keeping only the headless build is both the
+# fix and 74 MB smaller. Nothing here uses a GUI function, and cv2.aruco has
+# lived in base OpenCV since 4.7, so marker detection is unaffected.
+#
+# Every comment about this sits *above* the instruction rather than inside it.
+# A backslash joins the following line onto this one, so a `#` indented within
+# a continuation does not comment out one line -- it comments out the entire
+# remainder of the joined command. That is what silently deleted the two pip
+# calls below on the previous attempt, leaving the desktop build in place.
 RUN pip install --upgrade pip \
     && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api \
-    # RapidOCR depends on opencv-python, the desktop build, which is compiled
-    # against X11 and drags in libraries a server image has no reason to carry.
-    # Both variants install the same `cv2` module into the same directory, so
-    # whichever lands second wins -- and when that is the desktop build, every
-    # import fails for want of libxcb. Keeping only the headless build is both
-    # the fix and 74 MB smaller. Nothing here uses a GUI function.
     && pip uninstall -y opencv-python opencv-python-headless \
     && pip install opencv-python-headless
 
