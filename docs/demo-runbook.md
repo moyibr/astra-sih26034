@@ -35,10 +35,12 @@ Pack:
 
 ## Twenty minutes before
 
-Two terminals:
+Two terminals. The first needs an officer configured, or the override and
+notice actions will refuse every request -- recording a decision is attributed
+to a named officer now, so there has to be one:
 
 ```bash
-make api
+ASTRA_OFFICERS="demo-token:LMO-0007:Anita Rao" make api
 ```
 
 ```bash
@@ -64,7 +66,8 @@ Do this first, before any slide.
 
 1. **Pick up a packet from your own bag.** Not a prepared image — the point is
    that it is arbitrary.
-2. **Lay your ID card flat beside it** and photograph both together.
+2. **Lay any wallet card flat beside it** and photograph both together.
+   A metro or loyalty card, not an identity document.
 3. **Read the verdict aloud**, and read the citation with it: *"Rule 9,
    Table-I — required 2.5 mm, measured 1.29 mm, interval 1.12 to 1.46."*
 
@@ -104,6 +107,13 @@ principal display panel** in cm², not the net quantity. The table is on
 Metrology Officer can. The system drafts the notice with its citations and
 evidence; a named officer signs it. Show the draft — it says on its face that it
 has no effect until signed, and it names the checks it is *not* alleging.
+
+**"What stops me signing a notice as someone else?"** Show it: open an
+inspection and the actions are behind a sign-in. The officer's identity comes
+from their token, never from a field in the request, and the signature is an
+HMAC over the evidence digest and timestamp -- alter the notice afterwards and
+it stops verifying. On the public link the same actions are declined outright,
+because a showcase should not accept decisions at all.
 
 **"What about the e-commerce rules?"** Import the sample catalogue and show
 Rule 6(10A) — the country-of-origin filter requirement in force since
