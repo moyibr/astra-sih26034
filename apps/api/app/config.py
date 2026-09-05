@@ -11,18 +11,39 @@ from __future__ import annotations
 
 import pathlib
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 
+def astra(name: str) -> AliasChoices:
+    """Accept both ``ASTRA_THING`` and the bare ``THING``.
+
+    Three settings were documented with an ``ASTRA_`` prefix in `.env.example`
+    and set that way in `render.yaml`, but no `env_prefix` was ever configured,
+    so pydantic-settings was looking for the bare names and silently kept its
+    defaults. The deployed service reported `env=development` while its
+    environment plainly said production, which is the sort of thing that is
+    noticed late and by accident.
+
+    Names without the prefix -- DATABASE_URL, PORT -- are conventions the
+    hosting platform sets itself, so they stay bare.
+    """
+    return AliasChoices(f"ASTRA_{name.upper()}", name.upper())
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    env: str = "development"
-    secret_key: str = "change-me-in-production"
+    env: str = Field(default="development", validation_alias=astra("env"))
+    secret_key: str = Field(
+        default="change-me-in-production", validation_alias=astra("secret_key")
+    )
 
-    active_rulepack: str = "lmpc-2011@2026.07.01"
+    active_rulepack: str = Field(
+        default="lmpc-2011@2026.07.01", validation_alias=astra("active_rulepack")
+    )
 
     database_url: str = f"sqlite:///{(REPO_ROOT / 'data' / 'astra.db').as_posix()}"
     upload_dir: pathlib.Path = REPO_ROOT / "data" / "uploads"
