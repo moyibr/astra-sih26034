@@ -8,6 +8,7 @@ because the OCR crashed is an inspection that cannot be audited.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import logging
 import pathlib
@@ -24,12 +25,39 @@ from astra_schema import (
     Report,
     ScanSource,
 )
-from vision.pipeline.analyse import analyse
-
 from ..config import settings
 from ..models import Notice, Scan
 
 log = logging.getLogger(__name__)
+
+
+class ScanningUnavailable(RuntimeError):
+    """Raised when a scan is requested on a deployment that cannot do OCR."""
+
+
+@functools.cache
+def scanning_available() -> bool:
+    """Whether this deployment can read a photograph.
+
+    Importing the vision pipeline is what pulls in OpenCV, ONNX Runtime and the
+    OCR models -- around 240 MB of wheels. Exactly one code path needs them, so
+    the import happens here rather than at module scope, and a deployment
+    without them still serves recorded inspections, the analytics, the rule
+    pack and the e-commerce audit perfectly well.
+
+    That is not a degraded mode so much as an honest one: on a tenth of a CPU a
+    scan takes a minute, so the public deployment does not pretend to offer it
+    and says as much through /health.
+    """
+    if not settings.scanning_enabled:
+        log.info("scanning disabled by configuration")
+        return False
+    try:
+        import vision.pipeline.analyse  # noqa: F401
+    except ImportError as exc:
+        log.info("scanning unavailable: %s", exc)
+        return False
+    return True
 
 
 def store_image(image_bytes: bytes) -> tuple[str, pathlib.Path]:
@@ -65,7 +93,19 @@ def run_scan(
     platform: str | None = None,
     listing_url: str | None = None,
 ) -> tuple[Scan, Report, ExtractedFields]:
+    if not scanning_available():
+        raise ScanningUnavailable(
+            "This deployment cannot read photographs. Live scanning needs the "
+            "OCR stack, which is omitted here because the free hosting tier "
+            "provides a tenth of a CPU and a scan would take about a minute. "
+            "Run the API locally to scan; everything else works here."
+        )
+
     digest, path = store_image(image_bytes)
+
+    # Imported here, not at module scope: this single line is what would
+    # otherwise make OpenCV and ONNX Runtime mandatory for the whole service.
+    from vision.pipeline.analyse import analyse
 
     fields = analyse(
         image_bytes,
@@ -85,7 +125,10 @@ def run_scan(
     scan = Scan(
         id=fields.scan_id,
         image_sha256=digest,
-        image_path=str(path),
+        # The bare filename, not an absolute path: a path from the machine
+        # that produced a scan means nothing inside a container, and the demo
+        # dataset ships between the two.
+        image_path=path.name,
         inspector_id=inspector_id,
         source=str(source),
         rulepack=report.rulepack,

@@ -25,6 +25,10 @@ dist/
 data/uploads/
 data/evidence/
 data/models/
+# ...but the demo bundle is committed on purpose: it is what lets a deployment
+# start with inspections to show without running OCR during its build.
+!data/demo/
+!data/demo/**
 *.db
 *.sqlite3
 docs/accuracy.generated.md

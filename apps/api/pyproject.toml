@@ -3,11 +3,21 @@ name = "astra-api"
 version = "0.1.0"
 description = "FastAPI service: scans, findings, officer disposition, notices, analytics."
 requires-python = ">=3.11"
+
+# astra-vision is here without its `ocr` extra on purpose. The API needs the
+# field extractor -- the e-commerce listing path reads declarations out of text
+# -- but only one code path in the whole service touches an image, and it loads
+# the vision pipeline lazily. A deployment that serves recorded inspections and
+# audits listings therefore installs 32 MB rather than 273 MB.
 dependencies = [
     "astra-schema", "astra-rules", "astra-vision",
     "fastapi>=0.115", "uvicorn[standard]>=0.30", "sqlalchemy>=2.0",
     "python-multipart>=0.0.9", "pydantic-settings>=2.3",
 ]
+
+[project.optional-dependencies]
+# Adds live scanning: photograph in, cited verdict out.
+scanning = ["astra-vision[ocr]"]
 
 [build-system]
 requires = ["setuptools>=68"]

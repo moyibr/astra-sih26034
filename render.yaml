@@ -1,17 +1,24 @@
-# Render Blueprint — deploys the ASTRA API.
+# Render Blueprint — the public, browse-only deployment.
 #
 # On render.com: New → Blueprint → pick this repository → Apply.
-# Render reads this file and needs nothing else configured by hand.
 #
-# The frontend is not here; it is deployed separately on Vercel, which is
-# better suited to Next.js. This service is the API, the OCR pipeline and the
-# rule engine.
+# This deploys apps/api/Dockerfile.lite, which carries no OCR stack. The reason
+# is the hardware: a free instance is 0.1 CPU and 512 MB. A scan that takes five
+# seconds on a laptop takes about a minute there, and loading the ONNX models at
+# boot is slow enough to overrun the health check and fail the deploy outright.
+#
+# So the public link serves the dashboard, the recorded inspections and their
+# evidence, every finding with its citation, the rule pack and the e-commerce
+# audit — and says plainly, through /health and in the interface, that live
+# scanning runs on the local build. See DEPLOY.md.
+#
+# The frontend is deployed separately on Vercel, which suits Next.js better.
 
 services:
   - type: web
     name: astra-sih26034-api
     runtime: docker
-    dockerfilePath: ./apps/api/Dockerfile
+    dockerfilePath: ./apps/api/Dockerfile.lite
     dockerContext: .
     plan: free
     region: singapore
@@ -35,12 +42,26 @@ services:
       # container would leave its evidence images behind and every finding would
       # point at a photograph that no longer exists. Keeping the records and the
       # images together means the demo is always internally consistent: it
-      # returns to the baked-in baseline whenever the container restarts.
+      # returns to the committed baseline whenever the container restarts.
       #
-      # A pilot deployment swaps this for a managed Postgres and object storage;
+      # A pilot deployment swaps this for managed Postgres and object storage;
       # nothing in the code changes but this variable.
       - key: DATABASE_URL
         value: sqlite:////app/data/astra.db
+
+      # Seeded on first boot from data/demo/, which is committed to the
+      # repository. No OCR runs during the build.
+      - key: DEMO_BUNDLE_DIR
+        value: /app/data/demo
+
+      # Declined rather than merely absent. The image has no OCR stack, but
+      # saying so explicitly means /health reports it and the interface can
+      # explain itself instead of offering a form that would time out.
+      - key: SCANNING_ENABLED
+        value: "false"
+
+      - key: WARM_OCR_ON_STARTUP
+        value: "false"
 
       # The Vercel hostname is not known until the frontend has been built, and
       # every preview branch gets a different one. This matches the project's
@@ -48,13 +69,5 @@ services:
       - key: CORS_ORIGIN_REGEX
         value: ^https://(astra-sih26034|astra-sih26034-[a-z0-9-]+)\.vercel\.app$
 
-      # Models are baked into the image, so the first scan does not wait on a
-      # download. Warming them at boot keeps that cost out of the first request
-      # too, which on a tier that sleeps is the request someone is watching.
-      - key: WARM_OCR_ON_STARTUP
-        value: "true"
-
-      # Left off: with no key the pipeline runs entirely on local OCR and
-      # pattern extraction, which is how the offline demo runs.
       - key: LLM_NORMALISER_ENABLED
         value: "false"

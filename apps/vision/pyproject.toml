@@ -3,13 +3,30 @@ name = "astra-vision"
 version = "0.1.0"
 description = "Calibration, OCR, glyph measurement and field extraction."
 requires-python = ">=3.11"
+
+# The base install is deliberately light. Reading declarations out of text --
+# which is what the e-commerce path does -- needs nothing beyond the schema and
+# the standard library, so a deployment that only browses recorded inspections
+# and audits listings should not have to carry a computer-vision stack.
+#
+# Everything that touches an image lives behind the `ocr` extra. That is 240 MB
+# of wheels and three ONNX models, and it is the difference between an image
+# that boots in seconds on a tenth of a CPU and one that cannot boot there at
+# all.
 dependencies = [
     "astra-schema", "astra-rules",
-    "opencv-python-headless>=4.9", "numpy>=1.26", "pillow>=10",
-    "rapidocr>=3", "onnxruntime>=1.17", "zxing-cpp>=2",
 ]
 
 [project.optional-dependencies]
+# Required by anything that reads a photograph: calibration, OCR, measurement.
+# Only opencv-python-headless, never opencv-python -- they install the same cv2
+# module into the same directory, and the desktop build needs X11 libraries a
+# server image has no reason to carry. RapidOCR depends on the desktop build, so
+# it must be uninstalled after RapidOCR is installed; see apps/api/Dockerfile.
+ocr = [
+    "opencv-python-headless>=4.9", "numpy>=1.26", "pillow>=10",
+    "rapidocr>=3", "onnxruntime>=1.17", "zxing-cpp>=2",
+]
 llm = ["anthropic>=0.40"]
 
 [build-system]

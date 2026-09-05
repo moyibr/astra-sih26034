@@ -94,7 +94,16 @@ function query(params: Record<string, string | number | undefined>): string {
 }
 
 export const api = {
-  health: () => request<{ status: string; rulepack: string; rules: number }>("/health"),
+  health: () =>
+    request<{
+      status: string;
+      rulepack: string;
+      rules: number;
+      /** Whether this deployment can read a photograph. The public one cannot:
+       *  it runs without the OCR stack, because the free tier's tenth of a CPU
+       *  would take about a minute per scan. */
+      scanning?: boolean;
+    }>("/health"),
 
   listScans: (params: {
     verdict?: string;

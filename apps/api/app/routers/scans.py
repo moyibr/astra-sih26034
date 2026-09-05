@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from astra_schema import PackageShape, PackageType, PrintMethod, ScanSource
 
+from ..config import settings
 from ..db import get_session
 from ..models import Notice, Override, Scan
 from ..services import scanning
@@ -114,6 +116,10 @@ async def create_scan(
             district=district, premises=premises, platform=platform,
             listing_url=listing_url,
         )
+    except scanning.ScanningUnavailable as exc:
+        # 503, not 500: nothing is broken, this deployment simply does not
+        # offer the capability. The message tells the caller where it does.
+        raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -152,8 +158,24 @@ def get_scan(scan_id: str, session: Annotated[Session, Depends(get_session)]) ->
 
 @router.get("/scans/{scan_id}/image")
 def get_scan_image(scan_id: str, session: Annotated[Session, Depends(get_session)]):
+    """Serve the original image a scan was drawn from.
+
+    Stored paths are bare filenames resolved against the upload directory, so
+    the demo dataset built on one machine still finds its evidence inside a
+    container. Absolute paths from older records are honoured if they happen to
+    exist, and otherwise fall back to the same lookup.
+    """
     scan = _require(session, scan_id)
-    return FileResponse(scan.image_path, media_type="image/jpeg")
+    if not scan.image_path:
+        raise HTTPException(404, "this scan has no image; it was assessed from listing text")
+
+    candidate = pathlib.Path(scan.image_path)
+    if not candidate.is_absolute() or not candidate.exists():
+        candidate = settings.upload_dir / candidate.name
+    if not candidate.exists():
+        raise HTTPException(404, "the evidence image is no longer on disk")
+
+    return FileResponse(candidate, media_type="image/jpeg")
 
 
 @router.post("/scans/{scan_id}/override", response_model=ScanDetail)

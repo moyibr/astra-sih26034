@@ -19,7 +19,7 @@ help: ## Show this help
 install: ## Create the venv and install every package in editable mode
 	python -m venv .venv
 	$(VENV_PY) -m pip install --upgrade pip
-	$(VENV_PY) -m pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api
+	$(VENV_PY) -m pip install -e packages/schema -e packages/rulepacks -e "apps/vision[ocr]" -e apps/api
 	$(VENV_PY) -m pip install pytest
 	cd apps/web && npm install
 
@@ -35,9 +35,17 @@ test-fast: ## Run only the rule-engine tests (no OCR, under a second)
 demo: ## Print the rule engine reasoning through seven real-world scenarios
 	$(VENV_PY) scripts/demo_scenarios.py
 
+.PHONY: check
+check: ## Pre-flight: is this machine ready to demo, offline?
+	$(VENV_PY) scripts/preflight.py
+
 .PHONY: seed
 seed: ## Populate the database with synthetic inspections
 	$(VENV_PY) scripts/seed_demo.py --count 70
+
+.PHONY: demo-bundle
+demo-bundle: ## Rebuild the committed demo dataset (data/demo)
+	$(VENV_PY) scripts/build_demo_dataset.py --count 45
 
 .PHONY: eval
 eval: ## Score the pipeline against ground truth and write docs/accuracy.md

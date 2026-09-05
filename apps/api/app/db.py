@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+import pathlib
+import shutil
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine, event
@@ -10,6 +13,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from .config import settings
 from .models import Base
+
+log = logging.getLogger(__name__)
 
 _is_sqlite = settings.database_url.startswith("sqlite")
 
@@ -37,8 +42,53 @@ if _is_sqlite:
         cursor.close()
 
 
+def _install_demo_bundle() -> bool:
+    """Seed an empty database from the dataset committed to the repository.
+
+    Only ever runs when there is no database yet, so it cannot overwrite real
+    inspections. The images are copied alongside the records deliberately: a
+    database that outlived its evidence would leave every finding pointing at a
+    photograph that no longer exists, which is worse than starting empty.
+
+    This is what replaced generating the dataset during a container build. That
+    put OpenCV, ONNX Runtime and a minute of OCR on the critical path of every
+    deployment, and had to be redone on every restart of a host without a
+    persistent disk.
+    """
+    bundle = settings.demo_bundle_dir
+    bundle_db = bundle / "astra.db"
+    if not bundle_db.exists():
+        return False
+
+    target = _sqlite_path()
+    if target is None or target.exists():
+        return False
+
+    settings.ensure_dirs()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(bundle_db, target)
+
+    copied = 0
+    for image in (bundle / "uploads").glob("*"):
+        if image.is_file():
+            shutil.copy2(image, settings.upload_dir / image.name)
+            copied += 1
+
+    log.info("seeded from the committed demo bundle: %d evidence images", copied)
+    return True
+
+
+def _sqlite_path() -> pathlib.Path | None:
+    """Filesystem path behind a SQLite URL, or None for any other database."""
+    if not _is_sqlite:
+        return None
+    raw = settings.database_url.split("///", 1)[-1]
+    return pathlib.Path(raw) if raw else None
+
+
 def init_db() -> None:
     settings.ensure_dirs()
+    _install_demo_bundle()
     Base.metadata.create_all(engine)
 
 

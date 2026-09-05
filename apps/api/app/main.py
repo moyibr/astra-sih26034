@@ -18,6 +18,7 @@ from astra_rules import RulePack
 from .config import settings
 from .db import init_db
 from .routers import analytics, listings, rulepacks, scans
+from .services import scanning
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,7 +42,15 @@ async def lifespan(_app: FastAPI):
             pending, len(pack.rules),
         )
 
-    if settings.warm_ocr_on_startup:
+    if not scanning.scanning_available():
+        # Said plainly at boot, because someone reading the logs of a browse-only
+        # deployment should not have to work out why no scan ever succeeds.
+        log.info(
+            "live scanning is not available on this deployment; "
+            "recorded inspections, analytics, the rule pack and e-commerce "
+            "auditing are unaffected"
+        )
+    elif settings.warm_ocr_on_startup:
         # Paying the model-loading cost at boot keeps it out of the first scan,
         # which is invariably the one being demonstrated.
         try:
@@ -89,10 +98,17 @@ app.include_router(rulepacks.router)
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
+    """Liveness, and what this particular deployment can do.
+
+    `scanning` is the one field worth reading: the frontend uses it to decide
+    whether to offer the camera at all, so a browse-only deployment explains
+    itself instead of presenting a form that will fail.
+    """
     pack = RulePack.load(settings.active_rulepack)
     return {
         "status": "ok",
         "env": settings.env,
         "rulepack": pack.identifier,
         "rules": len(pack.rules),
+        "scanning": scanning.scanning_available(),
     }

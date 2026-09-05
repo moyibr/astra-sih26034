@@ -54,6 +54,18 @@ export default function InspectPage() {
   const [result, setResult] = useState<ScanDetail | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
+  // null while unknown. A deployment without the OCR stack says so through
+  // /health, and this page then explains itself rather than offering a camera
+  // that would only fail.
+  const [scanningEnabled, setScanningEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api
+      .health()
+      .then((h) => setScanningEnabled(h.scanning ?? true))
+      .catch(() => setScanningEnabled(null));
+  }, []);
+
   // Revoke the object URL when the preview changes, or a long session in the
   // field slowly leaks a blob per photograph.
   useEffect(() => {
@@ -134,6 +146,51 @@ export default function InspectPage() {
         </p>
       </header>
 
+      {scanningEnabled === false ? (
+        <Card className="mb-6 p-6">
+          <h2 className="text-base font-semibold">
+            Live scanning runs on the local build, not here
+          </h2>
+          <p className="mt-3 text-sm text-muted">
+            Reading a label means OpenCV, ONNX Runtime and three OCR models —
+            about 240&nbsp;MB, and a few seconds of real computation per
+            photograph. This public deployment runs on a free instance with a
+            tenth of a CPU, where the same scan would take roughly a minute and
+            loading the models at startup is slow enough to fail a health check.
+          </p>
+          <p className="mt-3 text-sm text-muted">
+            Rather than offer a camera that would time out, this deployment
+            leaves the OCR stack out entirely and says so. Everything that does
+            not need to read a photograph works exactly as it does locally:
+          </p>
+          <ul className="mt-3 space-y-1.5 text-sm text-muted">
+            {[
+              ["Enforcement overview", "/dashboard", "analytics and the violation map"],
+              ["45 recorded inspections", "/scans", "each with its evidence image and every finding"],
+              ["The rule pack", "/rulepack", "22 rules with their statutory citations"],
+            ].map(([label, href, detail]) => (
+              <li key={href} className="flex gap-2">
+                <span aria-hidden className="text-pass">
+                  ✓
+                </span>
+                <span>
+                  <Link href={href} className="font-medium text-accent hover:underline">
+                    {label}
+                  </Link>{" "}
+                  — {detail}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 rounded-md bg-surface-2 px-3 py-2 text-sm">
+            To scan a real package, run the API locally. See{" "}
+            <code>DEPLOY.md</code> in the repository.
+          </p>
+        </Card>
+      ) : null}
+
+      {scanningEnabled !== false ? (
+        <>
       <div className="mb-6 rounded-xl border border-accent/25 bg-accent-soft px-5 py-4">
         <h2 className="text-sm font-semibold">Put a card in the frame</h2>
         <p className="mt-1 text-sm">
@@ -329,6 +386,8 @@ export default function InspectPage() {
           </span>
         </div>
       </form>
+        </>
+      ) : null}
 
       {result ? (
         <div ref={resultRef} className="mt-10 space-y-5 scroll-mt-20">

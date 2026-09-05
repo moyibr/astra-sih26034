@@ -77,8 +77,12 @@ the next milestone.
 
 ```bash
 make install
-make test
+make check
 ```
+
+`make check` is a pre-flight: it verifies this machine can demo with the wifi
+off — packages importable, OCR models already cached, the rule pack loading,
+inspections present, ports free.
 
 See the engine reason through seven real-world scenarios, including the two
 where it deliberately refuses to accuse anyone:
@@ -87,22 +91,25 @@ where it deliberately refuses to accuse anyone:
 make demo
 ```
 
-Run the whole thing locally — API on `:8000`, dashboard and inspector on
-`:3000`:
+Run it locally — API on `:8000`, dashboard and inspector on `:3000`. Both are
+needed; the frontend alone will say it cannot reach the API.
 
 ```bash
-make seed && make api
+make api
 ```
 
 ```bash
 make web
 ```
 
-Or bring it up in containers, with no dependency on anything outside the repo:
+Or in containers, with no dependency on anything outside the repo:
 
 ```bash
 docker compose up --build
 ```
+
+For the deployed setup and what the public link does and does not do, see
+[DEPLOY.md](DEPLOY.md). For the day itself, [docs/demo-runbook.md](docs/demo-runbook.md).
 
 ## Layout
 
@@ -113,7 +120,9 @@ apps/vision/         calibration, OCR, glyph measurement, field extraction
 apps/api/            FastAPI: scans, findings, overrides, notices, analytics
 apps/web/            Next.js dashboard and inspector PWA
 ml/eval/             synthetic ground truth and the published accuracy report
-scripts/             scenario demo and database seeder
+scripts/             pre-flight check, demo dataset builder, scenario demo
+data/demo/           45 inspections and their evidence, committed so a
+                     deployment never has to run OCR during a build
 docs/rule-citations.md   every citation, and what still needs gazette checking
 ```
 
@@ -128,11 +137,12 @@ docs/rule-citations.md   every citation, and what still needs gazette checking
 | `apps/web` — dashboard, inspector PWA, rule-pack viewer | ✅ |
 | `ml/eval` — synthetic ground truth, accuracy report | ✅ |
 | E-commerce catalogue ingestion, incl. the Rule 6(10A) platform check | ✅ |
+| Browse-only deployment that runs without the OCR stack | ✅ |
 | Golden set of photographed labels | ⬜ needs photographs |
 | Live crawler for platform listing pages | ⬜ next |
 | Confirming 13 citations against the gazette text | ⬜ [see docs](docs/rule-citations.md) |
 
-90 tests passing.
+97 tests passing.
 
 ## A note on authority
 

@@ -57,7 +57,7 @@ COPY scripts/ scripts/
 # remainder of the joined command. That is what silently deleted the two pip
 # calls below on the previous attempt, leaving the desktop build in place.
 RUN pip install --upgrade pip \
-    && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api \
+    && pip install -e packages/schema -e packages/rulepacks -e "apps/vision[ocr]" -e apps/api \
     && pip uninstall -y opencv-python opencv-python-headless \
     && pip install opencv-python-headless
 
@@ -77,16 +77,12 @@ RUN python -c "import cv2; print('opencv', cv2.__version__)" \
 RUN python -c "from rapidocr import RapidOCR; RapidOCR()" || \
     echo "model prefetch skipped; they will download on first use"
 
-# Bake a demo dataset in at build time rather than seeding on boot.
-#
-# Seeding takes a couple of minutes, which a platform health check will not wait
-# for, and a hosting tier with an ephemeral filesystem would make the container
-# redo it on every wake. Building it into the image means the dashboard has
-# something to show the instant it starts, and that scans a visitor creates
-# during a session sit on top of a known-good baseline.
-ARG SEED_COUNT=45
-RUN python scripts/seed_demo.py --count ${SEED_COUNT} \
-    && python -c "import pathlib; print('seeded', len(list(pathlib.Path('data/uploads').glob('*'))), 'images')"
+# The demo inspections, generated once by scripts/build_demo_dataset.py and
+# committed, rather than produced here. Running OCR during a build put OpenCV,
+# ONNX Runtime and a minute of computation on the critical path of every
+# deployment, and it had to be redone on every restart of a host with no
+# persistent disk. Copying a file does not.
+COPY data/demo/ data/demo/
 
 EXPOSE 8000
 

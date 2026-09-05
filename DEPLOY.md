@@ -1,84 +1,28 @@
 # Deploying ASTRA
 
-Two services, two hosts, because they want different things:
+Three layers, each of which works on its own. Nothing depends on the layer
+above it, which is the whole point: a demo that has a single point of failure
+has a failure.
 
-| | Host | Why |
-| --- | --- | --- |
-| **Frontend** (Next.js) | Vercel | Built for it, and free. |
-| **API** (FastAPI + OCR) | Render | Needs a real container. Its dependencies come to 272 MB, over Vercel's 250 MB serverless limit, and a scan takes seconds rather than milliseconds. |
-
----
-
-## 1. The API, on Render
-
-Everything is already configured in [`render.yaml`](render.yaml). Render reads
-it and needs nothing set by hand.
-
-1. Go to **[render.com](https://render.com)** and **Sign in with GitHub**.
-2. **New +** → **Blueprint**.
-3. Pick the **`astra-sih26034`** repository.
-4. **Apply**.
-
-The first build takes roughly 10–15 minutes. Most of that is installing OpenCV
-and ONNX Runtime and then generating the demo dataset, which is baked into the
-image so the dashboard has something to show the moment it starts.
-
-When it finishes you get:
-
-```
-https://astra-sih26034-api.onrender.com
-```
-
-Check it by opening `/health` in a browser. It should answer:
-
-```json
-{ "status": "ok", "rulepack": "lmpc-2011@2026.07.01", "rules": 22 }
-```
-
-### Two things to know about the free tier
-
-**It sleeps after 15 minutes of inactivity.** The next request wakes it, which
-takes 40–60 seconds. Before showing anyone, open `/health` once and wait for it
-to answer — then everything is instant.
-
-**It gets 512 MB of memory**, which is enough for the OCR models but not
-generously so. If a scan ever fails with the container restarting, that is
-memory, and the fix is Render's paid tier or a smaller detection model.
+| Layer | Where | For | Survives |
+| --- | --- | --- | --- |
+| **1. Local** | Your laptop | The demo you present from. Full OCR, live scanning, instant. | The venue's wifi being dead |
+| **2. Public link** | Vercel + Render | What you send to teachers. Browse-only. | Being ignored for a week, then opened |
+| **3. Recording** | A video on your phone | The laptop itself failing. | Everything else failing |
 
 ---
 
-## 2. The frontend, on Vercel
+## Layer 1 — Local, and offline
 
-1. Go to **[vercel.com/new](https://vercel.com/new)** and **Continue with GitHub**.
-2. **Import** the `astra-sih26034` repository.
-3. Set **Root Directory** to `apps/web`. This is the only setting that matters —
-   the repository is a monorepo and Vercel defaults to the top level, where there
-   is no Next.js app.
-4. **Deploy**.
-
-The build takes about two minutes. You get `https://astra-sih26034.vercel.app`,
-and every later `git push` redeploys it automatically.
-
-It is already built against the Render URL above — `apps/web/.env.production`
-carries it — so it starts working the moment the API is awake.
-
-If the API ends up on a different hostname, because the service name was taken,
-change it in `apps/web/.env.production`, commit and push. It is inlined at build
-time rather than read at run time, so a redeploy is required for it to take
-effect.
-
----
-
-## 3. Running it locally
-
-Still the fastest way to develop, and the way to demo with no network at all.
+This is the one that matters. See [`docs/demo-runbook.md`](docs/demo-runbook.md)
+for the day itself.
 
 ```bash
 make install
-make seed
+make check
 ```
 
-Then two terminals:
+`make check` must print **Ready** before you rely on it. Then two terminals:
 
 ```bash
 make api
@@ -88,35 +32,116 @@ make api
 make web
 ```
 
-Open `http://localhost:3000`. **Both must be running** — the frontend on its own
+Open `http://localhost:3000`. **Both must be running** — the frontend alone
 will report that it cannot reach the API, which is exactly what that message
 means.
 
+Nothing here touches the network. The OCR models are cached on disk, the map
+draws itself without tiles, and the fonts are the system's own. Rehearse it with
+the wifi off at least once.
+
 ---
 
-## 4. Running it offline, in containers
+## Layer 2 — The public link
 
-For a venue where the wifi cannot be relied on. Needs Docker Desktop installed.
+### Why it cannot scan
+
+A Render free instance is **0.1 CPU and 512 MB**. A scan that takes five seconds
+on a laptop takes about a minute there, and loading the ONNX models at boot is
+slow enough to overrun the health check and fail the deploy outright — which is
+what happened, three times, before the cause was understood.
+
+So the public deployment omits the OCR stack entirely: **32 MB of dependencies
+rather than 273 MB**, booting in seconds. It reports `"scanning": false` from
+`/health`, and the interface explains itself instead of offering a camera that
+would time out.
+
+Everything else works, which is most of the system:
+
+| | |
+| --- | --- |
+| Dashboard, analytics, violation map | ✅ |
+| 45 recorded inspections with evidence images | ✅ |
+| Every finding with citation and measurement interval | ✅ |
+| The full rule pack | ✅ |
+| E-commerce catalogue audit, incl. Rule 6(10A) | ✅ |
+| Live camera scanning | Local only |
+
+Reading declarations out of listing text needs no computer vision, so the
+newest and most distinctive check in the pack — the country-of-origin filter
+requirement in force since 1 July 2026 — is fully live on the public link.
+
+### The API, on Render
+
+Configured in [`render.yaml`](render.yaml). Render reads it and needs nothing
+set by hand.
+
+1. **[render.com](https://render.com)** → **Sign in with GitHub**
+2. **New +** → **Blueprint**
+3. Pick **`astra-sih26034`** → **Apply**
+
+Build takes about two minutes. Check it at `/health`:
+
+```json
+{ "status": "ok", "rulepack": "lmpc-2011@2026.07.01", "rules": 22, "scanning": false }
+```
+
+`"scanning": false` is correct, not a fault.
+
+**It sleeps after 15 minutes idle.** The next request wakes it in under a
+minute. Before showing anyone, open `/health` once and wait.
+
+### The frontend, on Vercel
+
+1. **[vercel.com/new](https://vercel.com/new)** → **Continue with GitHub**
+2. Import **`astra-sih26034`**
+3. Set **Root Directory** to **`apps/web`** — the only setting that matters.
+   This is a monorepo and Vercel defaults to the top level, where there is no
+   Next.js app to build.
+4. **Deploy**
+
+Every later `git push` redeploys it. The API hostname lives in
+`apps/web/.env.production` and is inlined at build time, so changing it needs a
+redeploy rather than just a restart.
+
+---
+
+## Layer 3 — The recording
+
+Record a three-minute run once layer 1 is rehearsed: pick up a packet, scan it,
+read the citation, take the card away and show it decline to accuse. Keep it on
+your phone. If the laptop dies, you show the video rather than debugging in
+front of judges.
+
+---
+
+## Running the full stack in containers
+
+For a machine that has Docker and wants everything, OCR included:
 
 ```bash
 docker compose up --build
 ```
 
-Brings up Postgres, MinIO, the API and the frontend with no dependency on
-anything outside the repository. Worth rehearsing at least once before the
-finale, on a machine with its wifi switched off.
+Postgres, MinIO, the API with its vision stack, and the frontend — no dependency
+on anything outside the repository.
 
 ---
 
-## What is deliberately not persistent
+## Two things worth understanding
 
-The hosted demo keeps its database and its evidence images on the container's
-own filesystem, and both are rebuilt when the container restarts. That is a
-choice, not an oversight: on a tier with no persistent disk, a database that
-outlived its images would leave every finding pointing at a photograph that no
-longer existed. Keeping them together means the demo is always internally
-consistent — scans made during a session sit on top of a known-good baseline,
-and it returns to that baseline on restart.
+**The demo dataset is committed, not generated.** `data/demo/` holds 45
+inspections and their evidence images, built once by
+`scripts/build_demo_dataset.py` where the full stack is installed and fast.
+Deployments copy it. Generating it during a build put OpenCV, ONNX Runtime and
+a minute of OCR on the critical path of every deploy, and had to be redone
+whenever a container restarted on a host with no persistent disk.
 
-A pilot deployment swaps `DATABASE_URL` for managed Postgres and points the
-storage variables at S3. Nothing in the code changes.
+Rebuild it with `make demo-bundle` if the pipeline changes.
+
+**The database and its images share a fate.** Both live on the container's own
+filesystem and are restored from the committed bundle on restart. That is
+deliberate: on a tier with no persistent disk, a database that outlived its
+images would leave every finding pointing at a photograph that no longer
+exists. A pilot deployment swaps `DATABASE_URL` for managed Postgres and points
+storage at S3; no code changes.

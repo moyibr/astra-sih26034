@@ -1,0 +1,59 @@
+# The public, browse-only deployment.
+#
+# This image deliberately cannot read a photograph. It carries no OpenCV, no
+# ONNX Runtime and no OCR models -- 32 MB of dependencies rather than 273 MB.
+#
+# That is a response to the hosting, not a compromise in the design. A free
+# instance provides a tenth of a CPU, on which a scan that takes five seconds
+# here would take about a minute, and loading the models at boot is slow enough
+# to overrun a health check and take the whole service down with it. An endpoint
+# that technically exists but times out is worse than one that says plainly it
+# is offered elsewhere, so this deployment says so through /health and the
+# frontend explains it.
+#
+# Everything else works, and it is most of the system: the dashboard and its
+# analytics, 45 recorded inspections with their evidence images, every finding
+# with its citation and measurement interval, the full rule pack, and
+# e-commerce catalogue auditing including the Rule 6(10A) platform check --
+# because reading declarations out of listing text needs no computer vision at
+# all.
+#
+# Live scanning runs from apps/api/Dockerfile, or locally. See DEPLOY.md.
+
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install --no-install-recommends -y curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY packages/ packages/
+COPY apps/vision/ apps/vision/
+COPY apps/api/ apps/api/
+
+# astra-vision without its [ocr] extra. The API still needs the field
+# extractor, which the e-commerce path uses to read declarations out of listing
+# text, but that is regular expressions over strings and pulls in nothing heavy.
+RUN pip install --upgrade pip \
+    && pip install -e packages/schema -e packages/rulepacks -e apps/vision -e apps/api
+
+# The inspections and evidence images, generated once and committed rather than
+# produced here. No OCR runs during this build; that is the entire point.
+COPY data/demo/ data/demo/
+
+# Fail here if anything heavyweight crept back into the dependency graph. This
+# image is only reliable while it stays small, and a stray import would
+# reintroduce exactly the boot cost this exists to avoid.
+COPY scripts/assert_lite.py scripts/assert_lite.py
+RUN python scripts/assert_lite.py
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fsS http://localhost:${PORT:-8000}/health || exit 1
+
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --app-dir apps/api
