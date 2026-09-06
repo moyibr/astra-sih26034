@@ -55,8 +55,15 @@ the audience is in India.
 From the repository root:
 
 ```bash
-gcloud builds submit --config cloudbuild.yaml --substitutions=_SECRET_KEY=$(openssl rand -hex 32)
+bash scripts/deploy-cloudrun.sh
 ```
+
+It enables the services, creates the image repository, generates a signing key,
+builds, deploys and checks the result. Every step is idempotent, so if it fails
+halfway the fix is to run it again rather than to unpick what it did.
+
+Steps 3 to 5 above are what the script does, so with it you only need the
+account, the CLI and `gcloud auth login`.
 
 Cloud Build does the building, so Docker does not need to be installed locally.
 About three minutes the first time, under two after that.
