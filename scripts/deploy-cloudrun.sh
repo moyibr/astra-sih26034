@@ -42,7 +42,7 @@ ok "project $PROJECT"
 # A new project is not linked to a billing account on creation, and Cloud Run
 # will not run anything without one. Unchecked, that arrives several steps
 # later as a permission error that never mentions billing.
-BILLING=$(gcloud beta billing projects describe "$PROJECT" \
+BILLING=$(gcloud billing projects describe "$PROJECT" \
   --format="value(billingEnabled)" 2>/dev/null || echo unknown)
 case "$BILLING" in
   True)
