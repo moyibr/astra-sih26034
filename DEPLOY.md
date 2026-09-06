@@ -101,6 +101,20 @@ month and staying up around the clock costs 720, leaving nothing for a restart.
 It is a workaround for the hosting, not a feature: a paid instance does not
 sleep and the workflow becomes unnecessary.
 
+### Or Cloud Run, which is the actual fix
+
+Render's free tier is the reason the ping workflow exists. Cloud Run also scales
+to zero and is also free, but waking it is a container pull and a process start
+— seconds, against the fifty seconds to eight minutes measured on Render.
+
+`cloudbuild.yaml` builds `apps/api/Dockerfile.lite` and deploys it;
+Cloud Build does the work, so Docker is not needed locally. Setup and the exact
+commands are in [docs/cloud-run.md](docs/cloud-run.md).
+
+The one cost is that Google requires a card on the account even for the free
+tier. If that is unwelcome, the ping workflow keeps Render usable and this is
+optional.
+
 ### The frontend, on Vercel
 
 1. **[vercel.com/new](https://vercel.com/new)** → **Continue with GitHub**

@@ -1,0 +1,37 @@
+# What `gcloud builds submit` must not upload.
+#
+# Without this the build context is 1.1 GB -- a Python virtualenv, a
+# node_modules and a Next.js build output, none of which the API image touches.
+# The upload alone would take longer than the build.
+#
+# Note that .gcloudignore, unlike .dockerignore, does NOT fall back to
+# .gitignore once it exists. Everything to exclude has to be named here.
+
+.git/
+.gitignore
+
+# Local development environments. The image installs its own dependencies.
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# The frontend is deployed separately on Vercel and is no part of this image.
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+
+# Working data. The committed demo bundle under data/demo IS needed, so this
+# excludes its siblings rather than the whole directory.
+data/uploads/
+data/evidence/
+data/models/
+data/astra.db
+data/astra.db-*
+
+# Scratch and editor state.
+.claude/
+*.log
+.DS_Store

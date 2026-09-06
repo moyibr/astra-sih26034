@@ -1,0 +1,26 @@
+# Keeps the Docker build context small and the layer cache honest.
+#
+# Without it, editing a file inside .venv or node_modules would invalidate the
+# COPY layers and rebuild dependencies that have not changed.
+
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+apps/web/node_modules/
+apps/web/.next/
+apps/web/out/
+
+# data/demo is deliberately not excluded: the image copies it.
+data/uploads/
+data/evidence/
+data/models/
+data/astra.db
+data/astra.db-*
+
+.claude/
+*.log

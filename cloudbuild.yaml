@@ -1,0 +1,75 @@
+# Build and deploy the public API to Cloud Run.
+#
+#   gcloud builds submit --config cloudbuild.yaml
+#
+# Why here rather than Render: a Render free instance sleeps after fifteen
+# minutes and waking it on a tenth of a CPU took between fifty seconds and eight
+# minutes, during which every page that reads from it just sits there loading.
+# Cloud Run also scales to zero, but a cold start is a container pull and a
+# process start -- and this image is about 85 MB with no OCR stack in it, so
+# that is seconds rather than minutes.
+#
+# It fits the always-free allowance comfortably: two million requests, 180,000
+# vCPU-seconds and 360,000 GB-seconds a month, against a demo that serves a few
+# hundred requests. min-instances stays at zero because a warm instance is the
+# one thing that would actually cost money.
+#
+# Cloud Build does the building, so nothing here needs Docker installed locally.
+
+substitutions:
+  _SERVICE: astra-api
+  # Mumbai. The audience is in India and the round trip is the one latency we
+  # can choose.
+  _REGION: asia-south1
+  _REPO: astra
+  # Override at deploy time once the frontend hostname is known:
+  #   --substitutions=_CORS_REGEX='^https://your-app\.vercel\.app$'
+  _CORS_REGEX: '^https://(astra-sih26034|astra-sih26034-[a-z0-9-]+)\.vercel\.app$'
+  # Signs notices. Generate one and pass it; the default is a placeholder and
+  # deliberately looks like one.
+  _SECRET_KEY: change-me-in-production
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file=apps/api/Dockerfile.lite
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      # A public showcase. It accepts no writes, so there is nothing here for
+      # an unauthenticated caller to change.
+      - --allow-unauthenticated
+      - --memory=512Mi
+      - --cpu=1
+      # Zero when idle: this is what keeps it free. The cold start it buys back
+      # is seconds, which was the whole reason for moving.
+      - --min-instances=0
+      # A ceiling, so a loop or a crawler cannot run up a bill on an account
+      # with a card attached to it.
+      - --max-instances=3
+      - --concurrency=40
+      - --timeout=60
+      - --set-env-vars=ASTRA_ENV=production,ASTRA_ACTIVE_RULEPACK=lmpc-2011@2026.07.01,SCANNING_ENABLED=false,WARM_OCR_ON_STARTUP=false,WRITES_ENABLED=false,LLM_NORMALISER_ENABLED=false,DATABASE_URL=sqlite:////app/data/astra.db,DEMO_BUNDLE_DIR=/app/data/demo,ASTRA_SECRET_KEY=${_SECRET_KEY},CORS_ORIGIN_REGEX=${_CORS_REGEX}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
