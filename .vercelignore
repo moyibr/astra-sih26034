@@ -1,0 +1,30 @@
+# What the API deployment does not need.
+#
+# The build runs from the repository root so api/index.py can reach the
+# workspace packages. Everything else that lives here is either enormous or
+# irrelevant to a Python function.
+
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# The frontend is its own Vercel project.
+apps/web/
+
+# The OCR stack is not installed in this deployment, so nothing that only
+# serves it needs uploading.
+ml/
+
+# Working data. data/demo is deliberately kept: the function unpacks it.
+data/uploads/
+data/evidence/
+data/models/
+data/astra.db
+data/astra.db-*
+
+.claude/
+*.log

@@ -1,0 +1,15 @@
+# Dependencies for the Vercel-hosted API (api/index.py).
+#
+# Third-party only. The workspace packages -- astra_schema, astra_rules and the
+# field extractor -- are imported from the source tree by the entrypoint, which
+# avoids publishing them or vendoring a build step into the function.
+#
+# Deliberately no OpenCV, ONNX Runtime or RapidOCR. This deployment does not
+# read photographs; that is 240 MB and several seconds of CPU it has no use for.
+
+fastapi>=0.115
+pydantic>=2.9
+pydantic-settings>=2.3
+sqlalchemy>=2.0
+python-multipart>=0.0.9
+PyYAML>=6.0
