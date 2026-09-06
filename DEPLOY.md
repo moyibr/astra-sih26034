@@ -88,8 +88,18 @@ Build takes about two minutes. Check it at `/health`:
 
 `"scanning": false` is correct, not a fault.
 
-**It sleeps after 15 minutes idle.** The next request wakes it in under a
-minute. Before showing anyone, open `/health` once and wait.
+**It sleeps after 15 minutes idle**, and waking it is not quick: measured
+between fifty seconds and eight minutes on a tenth of a CPU. Until it answers,
+every page that reads from it sits there loading, and a visitor sees a project
+that does not work rather than a server starting.
+
+`.github/workflows/keep-awake.yml` pings `/health` every ten minutes between
+05:00 and 01:00 IST so it never sleeps during the hours anyone would open the
+link. The window is bounded because the free tier allows 750 instance-hours a
+month and staying up around the clock costs 720, leaving nothing for a restart.
+
+It is a workaround for the hosting, not a feature: a paid instance does not
+sleep and the workflow becomes unnecessary.
 
 ### The frontend, on Vercel
 

@@ -1,0 +1,58 @@
+# Keep the public API from falling asleep during the hours anyone might open it.
+#
+# A Render free instance sleeps after fifteen minutes idle. Waking it is not
+# quick on a tenth of a CPU -- measured at anywhere from fifty seconds to
+# several minutes -- and until it answers, every page that reads from it sits
+# there loading. Someone opening a shared link has no idea a server is starting;
+# they see a project that does not work.
+#
+# So this pings /health often enough that it never sleeps.
+#
+# The schedule is bounded on purpose. The free tier allows 750 instance-hours a
+# month and staying up around the clock costs 720 of them, which leaves no room
+# for a restart or a second service. Running 05:00-01:00 IST costs about 600 and
+# covers every hour a person in India would plausibly click a link; between one
+# and five in the morning the first visitor can wait.
+#
+# It is a workaround for hosting, not a feature. A paid instance does not sleep
+# and this file becomes unnecessary.
+
+name: Keep the public API awake
+
+on:
+  schedule:
+    # Every 10 minutes, 23:30-19:30 UTC == 05:00-01:00 IST.
+    - cron: "*/10 23,0-19 * * *"
+  workflow_dispatch:
+
+# Two runs overlapping would achieve nothing and waste minutes.
+concurrency:
+  group: keep-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake the API and confirm it is healthy
+        run: |
+          URL="https://astra-sih26034-api.onrender.com/health"
+
+          # A sleeping instance can take minutes to answer, so the first
+          # request is given room rather than being retried into a thundering
+          # herd. Failing after that is a real signal worth seeing in the
+          # Actions log.
+          for attempt in 1 2 3; do
+            code=$(curl -sS -m 180 -o /tmp/health.json -w "%{http_code}" "$URL" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "healthy on attempt $attempt:"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $code"
+            sleep 15
+          done
+
+          echo "::warning::The API did not answer after three attempts."
+          exit 1

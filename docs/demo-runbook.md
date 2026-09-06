@@ -54,9 +54,11 @@ Open `http://localhost:3000`, scan one packet, confirm you get a verdict. Leave
 both terminals running and the browser open on the landing page.
 
 If you are also showing the public link, open
-`https://astra-sih26034-api.onrender.com/health` once now. The free instance
-sleeps after fifteen minutes and takes about a minute to wake; do that waking
-before anyone is watching, not during.
+`https://astra-sih26034-api.onrender.com/health` once now and wait for it to
+answer. A scheduled ping keeps it awake between 05:00 and 01:00 IST, so it
+should be instant -- but if the workflow has been failing, waking it has taken
+anywhere from fifty seconds to eight minutes. Find that out now rather than
+while someone is watching.
 
 ---
 
