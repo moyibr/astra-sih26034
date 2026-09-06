@@ -39,6 +39,27 @@ PROJECT=$(gcloud config get-value project 2>/dev/null || true)
   || die "No project set. Run: gcloud config set project YOUR_PROJECT_ID"
 ok "project $PROJECT"
 
+# A new project is not linked to a billing account on creation, and Cloud Run
+# will not run anything without one. Unchecked, that arrives several steps
+# later as a permission error that never mentions billing.
+BILLING=$(gcloud beta billing projects describe "$PROJECT" \
+  --format="value(billingEnabled)" 2>/dev/null || echo unknown)
+case "$BILLING" in
+  True)
+    ok "billing linked" ;;
+  False)
+    die "Billing is not linked to $PROJECT.
+
+       Link it here:
+       https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT
+
+       Nothing here costs money -- Cloud Run's free allowance covers this many
+       times over -- but Google will not run anything at all until a billing
+       account is attached." ;;
+  *)
+    printf "  \033[33mWARN\033[0m could not confirm billing; continuing anyway\n" ;;
+esac
+
 [ -f cloudbuild.yaml ] \
   || die "Run this from the repository root; cloudbuild.yaml is not here."
 [ -f data/demo/astra.db ] \
